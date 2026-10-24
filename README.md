@@ -1,6 +1,6 @@
 # Pilot
 
-Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between any agent (Claude Code, Codex CLI, any MCP client) and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
 
 ```
 agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
@@ -10,7 +10,7 @@ Built for the dreamDEX Perps Bounty, MVP track, category bots and agents.
 
 ## Demo excerpt
 
-From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer (the one linked from its perps testnet docs). A real order and its close, driven by Claude Code, and an order from a second client:
+From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer. A real order and its close, driven by Claude Code, and an order from a second client:
 
 | what | tx | on chain |
 |---|---|---|
@@ -18,7 +18,7 @@ From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on
 | close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
 | short 0.00031 BTC from Codex CLI (OpenAI); plan_order first showed liquidation at 234283.29, 189.78% from mark | [`0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080) | success @ block 31576050 |
 
-And a refusal, with nothing sent. With 0.2 SOL already open, Claude Code asked for $60 more SOL (an order of $59, sized at 0.57 SOL). The cap is on the position the order leaves, so pilot (rule `maxNotionalUsd`) answered:
+And a refusal, with nothing sent. With 0.2 SOL already open, Claude Code was told to request $60 more SOL (scripted prompt, `evidence/p6-prompt-cc.txt`) and planned it (an order of $59, sized at 0.57 SOL). The cap is on the position the order leaves, so pilot (rule `maxNotionalUsd`) answered:
 
 > the position this order leaves would be $79.80 notional, above the $25 cap per market
 > next safe action: no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room
@@ -27,9 +27,9 @@ The agent planned nothing more. Brackets and cancels are on chain too, e.g. brac
 
 ## Who it is for
 
-Anyone who wants an AI agent (Claude Code, Codex CLI, any MCP client) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`pilot journal --card`).
+Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`pilot journal --card`).
 
-Testnet only: Somnia Hideki (chain 50383). dreamDEX's [perps testnet docs](https://app.testnet.dreamdex.io/docs/developers/perps-testnet) say "Testnet perps run on the Hideki testnet chain, which the app shows as the Tokyo region", so this is the bounty's "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
+Testnet only: Somnia Hideki (chain 50383). the bounty listing calls it the "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
 
 ## What pilot adds over handing the agent the SDK
 
