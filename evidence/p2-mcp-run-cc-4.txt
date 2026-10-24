@@ -1,0 +1,28 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 98c7c04 (after QA round 3), 2026-10-24 ~02:30 UTC.
+# Same mcp config and prompt as evidence/p2-mcp-run-cc-3.txt (key from the shell env, never in the config).
+# journal rows: evidence/p2-mcp-run-cc-4-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
+
+All four steps finished on Somnia Hideki testnet (chain 50383). The long opened, filled in full and was closed, and the SOL position is now 0.
+
+**1. Plan (0.1 SOL long)**
+- Verdict: ok. The plan_id was `plan_d6f4bab92a7d`.
+- Limit price: 103.61 (IOC, so it fills now or not at all).
+- Notional: $10.361.
+- Position after: 0.1 SOL, up from 0.
+- Liquidation price: none. The plan says no liquidation price is reachable at this size. Projected leverage is 0.207x and the margin lock is $0.6343.
+- Policy: max notional $25, minimum liquidation distance 15%, and a daily cap of 20 orders. The plan was within all of them.
+
+**2. Place**
+- The order filled 0.1 of the 0.1 requested, in block 31569787.
+- Tx hash: `0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`
+
+**3. Close**
+- The sell closed the long, filling 0.1 at a limit of 101.54, in block 31569804.
+- Tx hash: `0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`
+
+**4. Last 3 journal entries**
+- 02:30:53Z, plan: SOL long 0.1, limit 103.61, plan_id `plan_d6f4bab92a7d`.
+- 02:30:55Z, order: open long filled 0.1, tx `0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`.
+- 02:30:56Z, close: sell 0.1, position after 0, tx `0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`.
+
+No orders were refused, so nothing needed a retry.
