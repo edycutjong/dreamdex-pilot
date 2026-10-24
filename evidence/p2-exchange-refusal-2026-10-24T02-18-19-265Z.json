@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-24T02:18:19.265Z",
+  "account": "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b",
+  "market": "SOL",
+  "ask": "102540000000000000000",
+  "limit": "97410000000000000000",
+  "quantity": "100000000",
+  "exchangeRefusal": true,
+  "errorName": "ImmediateOrCancelNoFill",
+  "rawReason": null,
+  "tx": "0x44dc12314f770217cad88c6eee8a5d9895abd7aa4185e6ba922536d63415a40d",
+  "explained": {
+    "code": "ImmediateOrCancelNoFill",
+    "reason": "the IOC order found nothing to fill at its limit price, so the exchange refused it; no position was opened",
+    "next": "plan again: the book moved, a fresh plan prices from the new touch"
+  }
+}

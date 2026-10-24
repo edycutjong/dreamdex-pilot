@@ -24,3 +24,25 @@ export const accountAddress = () => process.env.PILOT_ACCOUNT ?? privateKeyToAcc
 
 // JSON-safe for bigint-heavy SDK rows.
 export const json = (v) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x), 2);
+
+// The signed send for place_order/close_position, built on first use. The SDK's debug sink is
+// the only place a REVERTED order's tx hash surfaces (the thrown ContractRevertError carries
+// none), so the sender keeps it and attaches it as `txHash`: an exchange refusal still leaves
+// a receipt anyone can look up.
+export const createSender = (make = writeMarkets) => {
+  let writer;
+  let lastHash = null;
+  const debug = (e) => {
+    if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) lastHash = e.data.hash;
+  };
+  return async (order) => {
+    writer ??= make({ debug });
+    lastHash = null;
+    try {
+      return await writer.trader.placePerpOrder(order);
+    } catch (e) {
+      e.txHash = lastHash;
+      throw e;
+    }
+  };
+};
