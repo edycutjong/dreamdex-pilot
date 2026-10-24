@@ -1,6 +1,8 @@
-pilot MCP server ready on stdio (Somnia Hideki testnet)
 {
-  "at": "2026-10-24T02:04:20.962Z",
+  "at": "2026-10-24T02:07:28.981Z",
+  "args": {
+    "symbol": "BTC"
+  },
   "server": {
     "name": "pilot",
     "version": "0.1.0"
@@ -16,14 +18,14 @@ pilot MCP server ready on stdio (Somnia Hideki testnet)
       "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
       "markPrice": 80635.96668253634,
       "indexPrice": 80671.29256673182,
-      "lastPrice": 80978.1,
+      "lastPrice": 80977.5,
       "maxLeverage": 20,
       "minQuantity": "0.00013",
       "lotSize": "0.00001",
       "tickSize": "0.1",
       "fundingRatePerWindowPct": 0.1235015008549854,
       "fundingWindowHours": 8,
-      "openInterest": "339.52072"
+      "openInterest": "339.56371"
     }
   }
 }

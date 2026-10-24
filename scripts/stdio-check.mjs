@@ -10,5 +10,5 @@ await client.connect(new StdioClientTransport({ command: process.execPath, args:
 const { tools } = await client.listTools();
 const r = await client.callTool({ name: "markets", arguments: process.argv[2] ? { symbol: process.argv[2] } : {} });
 const body = r.isError ? r.content[0].text : JSON.parse(r.content[0].text);
-console.log(JSON.stringify({ at: new Date().toISOString(), server: client.getServerVersion(), tools: tools.map((t) => t.name), markets: r.isError ? { error: body } : { count: body.count, first: body.markets[0] } }, null, 2));
+console.log(JSON.stringify({ at: new Date().toISOString(), args: { symbol: process.argv[2] ?? null }, server: client.getServerVersion(), tools: tools.map((t) => t.name), markets: r.isError ? { error: body } : { count: body.count, first: body.markets[0] } }, null, 2));
 await client.close();
