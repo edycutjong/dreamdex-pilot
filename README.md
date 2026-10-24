@@ -70,7 +70,7 @@ npm test
 The server reads the key from the environment of the process that starts it. Export it in the shell you launch your client from (reads work without a key if you set `PILOT_ACCOUNT` to a public address):
 
 ```bash
-export PILOT_PRIVATE_KEY=0x...   # testnet burner key
+export PILOT_PRIVATE_KEY=0x...   # testnet burner key (a wallet export without 0x works too)
 ```
 
 Never paste or screenshot the key, or a terminal where it is exported.

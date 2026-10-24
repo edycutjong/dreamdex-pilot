@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ContractRevertError } from "@somnia-chain/markets-sdk";
-import { createSender, createChain, assertAccountMatchesKey } from "../src/client.mjs";
+import { createSender, createChain, assertAccountMatchesKey, normalizeKey } from "../src/client.mjs";
+import { privateKeyToAccount } from "viem/accounts";
 
 // A fake SDK that emits the same debug span the real one does when a tx is broadcast.
 const fakeMake = (outcome) => ({ debug }) => ({
@@ -114,4 +115,22 @@ describe("assertAccountMatchesKey", () => {
   it("passes when PILOT_ACCOUNT is unset", () => expect(() => assertAccountMatchesKey({ PILOT_PRIVATE_KEY: key })).not.toThrow());
   it("refuses writes when PILOT_ACCOUNT is another address than the key's", () =>
     expect(() => assertAccountMatchesKey({ PILOT_PRIVATE_KEY: key, PILOT_ACCOUNT: "0x000000000000000000000000000000000000dEaD" })).toThrow(/read one account and trade another/));
+});
+
+describe("normalizeKey", () => {
+  const hex = "11".repeat(32);
+  it("takes a key the way wallets export it: without 0x, with 0X, with a trailing newline", () => {
+    for (const k of [hex, `0x${hex}`, `0X${hex}`, ` ${hex}\n`]) expect(normalizeKey(k)).toBe(`0x${hex}`);
+    // a MetaMask-style export (no 0x) signs as the same account and passes the PILOT_ACCOUNT check
+    const address = privateKeyToAccount(`0x${hex}`).address;
+    expect(() => assertAccountMatchesKey({ PILOT_PRIVATE_KEY: hex, PILOT_ACCOUNT: address })).not.toThrow();
+  });
+  it("rejects anything that is not 32 bytes of hex, and never echoes the value", () => {
+    for (const k of [hex.slice(2), `${hex}00`, `0x${"zz".repeat(32)}`, "seed words are not a key"]) {
+      let err;
+      try { normalizeKey(k); } catch (e) { err = e; }
+      expect(err?.message).toBe("PILOT_PRIVATE_KEY is not a private key: expected 64 hex characters (with or without 0x)");
+      expect(err.message).not.toContain(k.trim());
+    }
+  });
 });

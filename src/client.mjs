@@ -7,10 +7,20 @@ import { privateKeyToAccount } from "viem/accounts";
 export const INDEXER_URL = process.env.PILOT_INDEXER_URL ?? "https://hideki-dev.smk.somnia.host/v1/graphql";
 export const CHAIN = hidekiTestnet;
 
+// A key the way wallets export it: MetaMask's "Show private key" has no 0x, and a pasted env value
+// can carry a newline. The error never echoes the value.
+export const normalizeKey = (raw) => {
+  const k = String(raw).trim();
+  const hex = /^0x/i.test(k) ? k.slice(2) : k;
+  if (!/^[0-9a-fA-F]{64}$/.test(hex))
+    throw Object.assign(new Error("PILOT_PRIVATE_KEY is not a private key: expected 64 hex characters (with or without 0x)"), { pilotUser: true });
+  return `0x${hex}`;
+};
+
 const key = () => {
   const k = process.env.PILOT_PRIVATE_KEY;
   if (!k) throw new Error("PILOT_PRIVATE_KEY is not set: writes need a testnet burner key in the environment");
-  return k;
+  return normalizeKey(k);
 };
 
 export const readMarkets = () =>
@@ -19,7 +29,7 @@ export const readMarkets = () =>
 // Reads may be pointed at any address with PILOT_ACCOUNT, but the key signs for its own account:
 // a different PILOT_ACCOUNT would make pilot read one account and trade another.
 export const assertAccountMatchesKey = (env = process.env) => {
-  const derived = privateKeyToAccount(env.PILOT_PRIVATE_KEY).address;
+  const derived = privateKeyToAccount(normalizeKey(env.PILOT_PRIVATE_KEY)).address;
   if (env.PILOT_ACCOUNT && env.PILOT_ACCOUNT.toLowerCase() !== derived.toLowerCase())
     throw new Error(`PILOT_ACCOUNT ${env.PILOT_ACCOUNT} is not the address of PILOT_PRIVATE_KEY (${derived}): pilot would read one account and trade another. Unset PILOT_ACCOUNT for writes.`);
 };
