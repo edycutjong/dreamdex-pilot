@@ -2,6 +2,10 @@
 
 An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it plans every order first, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
 
+## Who it is for
+
+Anyone who wants an AI agent (Claude Code, Codex CLI, any MCP client) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits.
+
 Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on and that the app shows as the Tokyo region, i.e. the bounty's "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
 
 ## Tools
@@ -70,12 +74,38 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 
 One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
 
+## Demo excerpt
+
+From [`DEMO.md`](DEMO.md), all re-read from the RPC. A real order and its close, driven by Claude Code:
+
+| what | tx | on chain |
+|---|---|---|
+| long 0.1 SOL (IOC), filled 0.1 | `0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56` | success @ block 31569787 |
+| close long 0.1 SOL, position after 0 | `0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472` | success @ block 31569804 |
+
+And a refusal, with nothing sent: asked for $60 of SOL (pilot sized it at 0.57 SOL), pilot answered "the position this order leaves would be $79.77 notional, above the $25 cap per market", next safe action "reduce size to at most 0.04 SOL" (rule `maxNotionalUsd`).
+
 ## Safety
 
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
 - `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
 - The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
 - Closing and cancelling reduce risk, so your policy limits never block them. A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
+
+## Honest limits
+
+- Testnet only. Nothing here has run on mainnet.
+- Some reverted sends come back with the reason `unknown`: the SDK sometimes fails its own replay (an RPC `eth_call`) of the failed transaction, so pilot reports the revert as unknown rather than guessing a reason. How often varied from run to run.
+- A crash between a landed send and its journal row is not counted toward the daily cap.
+- Plans live in the server's memory only, so restarting the server drops them.
+
+## X posts
+
+Posts about pilot that tag @DreamDEXSomnia:
+
+1. _link to post 1 goes here_
+2. _link to post 2 goes here_
+3. _link to post 3 goes here_
 
 ## License
 
