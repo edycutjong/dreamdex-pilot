@@ -26,6 +26,14 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   const cancels = by("cancel").filter((e) => e.txs?.length);
   const refusals = by("refusal");
   const notes = by("note");
+  // The plan an order was sent from carries what plan_order showed before the send (margin, leverage, liquidation).
+  const plans = new Map(by("plan").map((e) => [e.plan_id, e]));
+  const planned = (e) => {
+    const p = plans.get(e.plan_id);
+    if (!p) return "";
+    const liq = p.liquidationPrice != null ? `liquidation ${Number(p.liquidationPrice).toFixed(2)} (${p.liquidationDistancePct}% from mark)` : (p.liquidationNote ?? "liquidation unknown");
+    return `; planned: margin $${p.marginLockUsd}, ${p.projectedLeverageX}x leverage, ${liq}`;
+  };
   const byPilot = refusals.filter((e) => e.refused_by === "pilot-policy");
   const byExchange = refusals.filter((e) => e.refused_by === "exchange");
   const rc = (tx) => {
@@ -53,7 +61,7 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     for (const e of list) out.push(`| ${cell(e.at)} | ${cell(line(e))} | ${txLink(e.tx, link && explorer)} | ${cell(rc(e.tx))} | ${cell(e._src)} |`);
     out.push("");
   };
-  tx(orders, "Orders", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}`);
+  tx(orders, "Orders", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}${planned(e)}`);
   tx(closes, "Closes", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), position after ${e.positionAfter}`);
   tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})${e.operatorGrantTxs?.length ? `; first bracket, the SDK also sent the one-time operator grant ${e.operatorGrantTxs.join(", ")}` : ""}`, false);
   if (cancels.length) {

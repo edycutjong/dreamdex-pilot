@@ -59,13 +59,16 @@ export const units = (mk) => {
 };
 
 const newPlanId = () => `plan_${randomBytes(6).toString("hex")}`;
+// A plan stays in memory this long after it expires, so a late or repeated place_order is told
+// what became of it (expired, sent, refused) instead of "no plan"; then it is forgotten.
+export const PLAN_MEMORY_MS = 10 * 60_000;
 
 // Signed exposure in a market after an order, as USD notional at the order's limit price.
 const exposureUsd = (u, posSize, signedQty, price, baseDecimals) => u.usd(notionalRaw(abs(posSize + signedQty), price, baseDecimals));
 
 export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const policy = deps.policy();
-  for (const [id, p] of deps.plans) if (deps.now() > p.expiresAt) deps.plans.delete(id); // sweep expired plans
+  for (const [id, p] of deps.plans) if (deps.now() > p.expiresAt + PLAN_MEMORY_MS) deps.plans.delete(id); // forget old plans
   const client = deps.client();
   const account = deps.account();
   const mk = await findMarket(client, market);
@@ -287,7 +290,7 @@ export const placeOrder = async (deps, { plan_id }) => {
   const policy = deps.policy();
   const s = inflight(deps);
   const p = deps.plans.get(plan_id);
-  if (!p) return refuse(deps, "unknownPlan", `no live plan ${plan_id}: plans live in this server's memory only and are one-shot`, "call plan_order first", { plan_id });
+  if (!p) return refuse(deps, "unknownPlan", `no plan ${plan_id} on this server: plans live in its memory only (a restart drops them), are one-shot, and are forgotten ${PLAN_MEMORY_MS / 60_000} minutes after they expire`, "call plan_order first", { plan_id });
   if (p.used) return refuse(deps, "planAlreadyUsed", `plan ${plan_id} was already used: ${p.outcome}`, "call plan_order for a new plan", { plan_id });
   if (s.markets.has(p.raw.symbol)) return busy(deps, p.raw.symbol, "open"); // plan stays usable
   // Claimed synchronously, before any await: two parallel calls with one plan_id cannot both pass.
@@ -312,7 +315,6 @@ export const placeOrder = async (deps, { plan_id }) => {
 const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
   const { raw } = p;
   if (deps.now() > p.expiresAt) {
-    deps.plans.delete(plan_id);
     return refuse(deps, "planExpired", `plan ${plan_id} expired ${Math.round((deps.now() - p.expiresAt) / 1000)}s ago (plans live ${policy.planTtlSec}s)`, "call plan_order again for fresh prices", { plan_id });
   }
   const u = units({ quoteDecimals: raw.quoteDecimals, baseDecimals: raw.baseDecimals });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ContractRevertError } from "@somnia-chain/markets-sdk";
-import { planOrder, placeOrder, closePosition, limitPrice, liquidationDistancePct, GAS, IOC } from "../src/trader.mjs";
+import { planOrder, placeOrder, closePosition, limitPrice, liquidationDistancePct, GAS, IOC, PLAN_MEMORY_MS } from "../src/trader.mjs";
 import { makeDeps, px, sol } from "./fixtures.mjs";
 
 const plan = (deps, a = {}) => planOrder(deps, { market: "SOL", side: "long", size: "0.1", ...a });
@@ -112,7 +112,7 @@ describe("plan_order", () => {
     const r = await planOrder({ ...deps, client: () => broken }, { market: "SOL", side: "long", size: "0.1" });
     expect(r.refusals.map((x) => x.rule)).toContain("liquidationUnknown");
   });
-  it("sweeps expired plans, keeping a used one until then (a repeat still reads planAlreadyUsed)", async () => {
+  it("remembers plans for 10 minutes after they expire (a repeat still reads planAlreadyUsed), then forgets them", async () => {
     const { deps, state } = makeDeps();
     const a = await plan(deps);
     await placeOrder(deps, { plan_id: a.plan_id });
@@ -121,9 +121,16 @@ describe("plan_order", () => {
     expect((await placeOrder(deps, { plan_id: a.plan_id })).rule).toBe("planAlreadyUsed");
     state.clock += 61_000;
     await plan(deps);
+    expect((await placeOrder(deps, { plan_id: a.plan_id })).rule).toBe("planAlreadyUsed");
+    expect(deps.plans.size).toBe(3);
+    state.clock += PLAN_MEMORY_MS;
+    await plan(deps);
     expect(deps.plans.has(a.plan_id)).toBe(false);
     expect(deps.plans.has(b.plan_id)).toBe(false);
-    expect(deps.plans.size).toBe(1);
+    expect(deps.plans.size).toBe(2);
+    const gone = await placeOrder(deps, { plan_id: a.plan_id });
+    expect(gone.rule).toBe("unknownPlan");
+    expect(gone.reason).toMatch(/forgotten 10 minutes after they expire/);
   });
   it("refuses below the market minimum", async () => expect(await refused(null, { size: "0.05" })).toEqual(["minQuantity"]));
   it("refuses a size that rounds to 0 before any preview, naming every broken rule (real run: 0.1 DOGE)", async () => {
@@ -181,6 +188,10 @@ describe("place_order", () => {
     const { plan_id } = await plan(deps);
     state.clock += 61_000;
     await placeRefused(deps, state, plan_id, "planExpired");
+    // Asking again is told what became of it, not "no plan" (a live run got unknownPlan here).
+    const again = await placeOrder(deps, { plan_id });
+    expect(again.rule).toBe("planAlreadyUsed");
+    expect(again.reason).toMatch(/refused it \(planExpired\) and sent nothing/);
   });
   it("accepts a plan just inside its lifetime", async () => {
     const { deps, state } = makeDeps();

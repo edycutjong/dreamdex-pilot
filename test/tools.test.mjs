@@ -303,6 +303,21 @@ describe("DEMO.md", () => {
     expect(renderDemo([{ ...rows[0], tx: "unknown" }])).toContain("| `unknown` |");
   });
 
+  it("shows what plan_order said before each order: margin, leverage, liquidation", () => {
+    const tx = "0x" + "9".repeat(64);
+    const order = { at: "2026-10-24T06:00:01.000Z", kind: "order", direction: "short", size: "0.00031", market: "BTC", limitPrice: "1", filled: "0.00031", positionAfter: "-0.00031", plan_id: "plan_b", tx };
+    const md = renderDemo([
+      { at: "2026-10-24T06:00:00.000Z", kind: "plan", plan_id: "plan_b", marginLockUsd: 1.4417, projectedLeverageX: 0.5075, liquidationPrice: "234283.285601888276944925", liquidationDistancePct: 189.78 },
+      order,
+      { at: "2026-10-24T06:01:00.000Z", kind: "plan", plan_id: "plan_c", marginLockUsd: 0.63, projectedLeverageX: 0.21, liquidationPrice: null, liquidationNote: "no reachable liquidation price at this size" },
+      { ...order, at: "2026-10-24T06:01:01.000Z", plan_id: "plan_c" },
+      { ...order, at: "2026-10-24T06:02:01.000Z", plan_id: "plan_gone" },
+    ]);
+    expect(md).toContain("; planned: margin $1.4417, 0.5075x leverage, liquidation 234283.29 (189.78% from mark)");
+    expect(md).toContain("; planned: margin $0.63, 0.21x leverage, no reachable liquidation price at this size");
+    expect(md).toContain("position after -0.00031 |"); // no plan row: nothing is made up
+  });
+
   it("marks a tx that was not re-fetched instead of inventing a receipt", () => {
     expect(renderDemo(rows)).toContain("not re-fetched");
   });
