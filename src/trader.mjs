@@ -6,7 +6,7 @@
 //   deps.plans     Map of live plans        deps.now()      ms clock (tests freeze it)
 import { randomBytes } from "node:crypto";
 import { formatUnits, parseUnits } from "viem";
-import { evaluate } from "./policy.mjs";
+import { evaluate, DEFAULT_POLICY } from "./policy.mjs";
 import { explainExchangeError, isExchangeRefusal, describeError } from "./exchange-errors.mjs";
 
 // Report 009 (sieve): successful IOC orders used up to 13.4M gas, above the documented ~1.56M
@@ -382,10 +382,18 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
   }
 };
 
-// Closing reduces risk, so policy never blocks it (not the allowlist, not the daily cap). The size
-// comes from the live position (getPerpPosition), never from remembered fills.
+// Closing reduces risk, so policy never blocks it (not the allowlist, not the daily cap, not an
+// invalid policy file: the close then uses the default slippage bound and says so, while every
+// opening tool still refuses until the file is fixed). The size comes from the live position
+// (getPerpPosition), never from remembered fills.
 export const closePosition = async (deps, { market }) => {
-  const policy = deps.policy();
+  let policy, note;
+  try {
+    policy = deps.policy();
+  } catch (e) {
+    policy = DEFAULT_POLICY;
+    note = { policyUnreadable: `${e?.pilotUser ? e.message : describeError(e)}. Closing reduces risk, so this close went ahead at the default ${DEFAULT_POLICY.maxSlippagePct}% slippage bound; opening tools refuse until the file is fixed` };
+  }
   const client = deps.client();
   const mk = await findMarket(client, market);
   const u = units(mk);
@@ -393,13 +401,14 @@ export const closePosition = async (deps, { market }) => {
   if (s.markets.has(mk.baseSymbol)) return busy(deps, mk.baseSymbol, "close");
   s.markets.add(mk.baseSymbol);
   try {
-    return await closeLocked(deps, { policy, client, mk, u });
+    const r = await closeLocked(deps, { policy, client, mk, u, note });
+    return note ? { ...r, ...note } : r;
   } finally {
     s.markets.delete(mk.baseSymbol);
   }
 };
 
-const closeLocked = async (deps, { policy, client, mk, u }) => {
+const closeLocked = async (deps, { policy, client, mk, u, note }) => {
   // Only the reads are caught here: once sendIoc runs, a tx may exist and sendIoc reports it.
   let pos, touch;
   try {
@@ -417,5 +426,5 @@ const closeLocked = async (deps, { policy, client, mk, u }) => {
   }
   const price = limitPrice({ isBid, ...touch, tick: BigInt(mk.tickSize), slippagePct: policy.maxSlippagePct });
   const raw = { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity: abs(pos.size), baseDecimals: mk.baseDecimals, quoteDecimals: mk.quoteDecimals ?? 18 };
-  return sendIoc(deps, { action: "close", raw, extra: { positionBefore: u.qty(pos.size) } });
+  return sendIoc(deps, { action: "close", raw, extra: { positionBefore: u.qty(pos.size), ...note } });
 };

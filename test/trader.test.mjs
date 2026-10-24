@@ -502,6 +502,20 @@ describe("close_position", () => {
     expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: true, status: "already flat" });
     expect(state.sends).toHaveLength(0);
   });
+  it("an invalid policy file does not block a close: it closes at the default slippage bound and says so", async () => {
+    const bad = () => { throw Object.assign(new Error("policy file /tmp/p.json is invalid (maxSlippagePct: Too big)"), { pilotUser: true }); };
+    const { deps, state, journal } = makeDeps({ policy: bad });
+    state.pos = sol(0.13);
+    const r = await closePosition(deps, { market: "SOL" });
+    expect(state.sends[0]).toMatchObject({ isBid: false, quantity: sol(0.13), price: px(101.48) }); // default 1%, as with a valid default policy
+    expect(r).toMatchObject({ ok: true, action: "close", positionAfter: "0" });
+    expect(r.policyUnreadable).toMatch(/^policy file \/tmp\/p\.json is invalid .*\. Closing reduces risk, so this close went ahead at the default 1% slippage bound; opening tools refuse until the file is fixed$/);
+    expect(journal.read().at(-1)).toMatchObject({ kind: "close", sent: true, policyUnreadable: r.policyUnreadable });
+    // the same note when nothing is sent
+    expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ status: "already flat", policyUnreadable: r.policyUnreadable });
+    // opening still refuses until the file is fixed
+    await expect(plan(deps)).rejects.toThrow(/is invalid/);
+  });
   it("closes a long with a sell sized from the live position", async () => {
     const { deps, state, journal } = makeDeps();
     state.pos = sol(0.13); // e.g. a partial fill elsewhere: size comes from chain, not memory

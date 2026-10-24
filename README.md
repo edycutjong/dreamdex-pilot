@@ -55,7 +55,7 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 | `policy` | Shows your limits. Read-only: no tool can change them. |
 | `journal` | Reads the append-only journal of every plan, refusal and transaction. |
 
-Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `bracket`, `markets` and `journal` still work), with an error that names the file and what is wrong; it never silently falls back.
+Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops `plan_order`, `place_order`, `account` and `policy` until you fix the file, with an error that names the file and what is wrong; it never silently falls back. `close_position` still closes, at the default 1% slippage bound, and says so in `policyUnreadable` (`cancel_all`, `bracket`, `markets` and `journal` do not read the policy).
 
 ## Run it
 
@@ -126,7 +126,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
 - `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
 - The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
-- Closing and cancelling reduce risk, so your policy limits never block them (an unreadable policy file still stops `close_position`, see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
+- Closing and cancelling reduce risk, so your policy limits never block them, and neither does an invalid policy file (see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
 
 ## Honest limits
 
