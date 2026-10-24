@@ -29,7 +29,7 @@ The agent planned nothing more. Brackets and cancels are on chain too, e.g. brac
 
 Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`pilot journal --card`).
 
-Testnet only: Somnia Hideki (chain 50383). the bounty listing calls it the "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
+Testnet only: Somnia Hideki (chain 50383), which the bounty listing calls the "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
 
 ## What pilot adds over handing the agent the SDK
 
@@ -55,7 +55,7 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 | `policy` | Shows your limits. Read-only: no tool can change them. |
 | `journal` | Reads the append-only journal of every plan, refusal and transaction. |
 
-Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops `plan_order`, `place_order`, `account` and `policy` until you fix the file, with an error that names the file and what is wrong; it never silently falls back. `close_position` still closes, at the default 1% slippage bound, and says so in `policyUnreadable` (`cancel_all`, `bracket`, `markets` and `journal` do not read the policy).
+Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops `plan_order`, `place_order` and `policy` until you fix the file, with an error that names the file and what is wrong; it never silently falls back. `account` still lists positions and brackets and puts that error under `policy.unreadable`, and `close_position` still closes, at the default 1% slippage bound, saying so in `policyUnreadable` (`cancel_all`, `bracket`, `markets` and `journal` do not read the policy).
 
 ## Run it
 
@@ -139,7 +139,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 - A crash between a landed send and its journal row is not counted toward the daily cap.
 - Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, deny the client's shell and file tools (both clients have permission settings) and keep the burner small.
 - Plans live in the server's memory only, so restarting the server drops them.
-- At the default $25 cap a small account stays under 1x leverage, where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
+- At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
 - MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
 - `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
 

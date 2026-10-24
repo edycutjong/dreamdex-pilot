@@ -27,9 +27,12 @@ const liveStops = async (deps, mk, indexed, rows = deps.journal.read()) => {
     if (e.kind !== "bracket" || e.market !== mk.baseSymbol) continue;
     for (const id of [e.takeProfitStopId, e.stopLossStopId]) if (id && !cancelled.has(String(id))) ids.add(String(id));
   }
+  // One parallel batch: ids a fired bracket left in the journal stay in this set (only pilot's own
+  // cancels remove them), and each is re-read every time; a null read is never memoized (a read can
+  // lag pilot's own receipt, sieve report 016). Any read that throws fails the whole lookup.
+  const reads = await Promise.all([...ids].map(async (id) => [id, await client.getPerpStopOrder({ registry: mk.stopRegistry, orderId: id })]));
   const live = [];
-  for (const id of ids) {
-    const o = await client.getPerpStopOrder({ registry: mk.stopRegistry, orderId: id });
+  for (const [id, o] of reads) {
     if (o && String(o.owner).toLowerCase() === account) live.push({ id, isBid: o.isBid, triggerPrice: o.triggerPrice, triggerOperator: o.triggerOperator });
   }
   return live;
@@ -92,7 +95,22 @@ export const accountInfo = async (deps) => {
       brackets = { unavailable: describeError(e) };
     }
   } else brackets = { unavailable: stops.error };
-  const p = deps.policy();
+  // What is open is a live read the user needs most when something is wrong: an invalid policy file
+  // or an unreadable journal does not hide the positions (close_position still works then too).
+  let policy;
+  try {
+    const p = deps.policy();
+    let today = null;
+    let journalUnreadable;
+    try {
+      today = ordersToday(deps);
+    } catch (e) {
+      journalUnreadable = describeError(e);
+    }
+    policy = { maxNotionalUsd: p.maxNotionalUsd, minLiquidationDistancePct: p.minLiquidationDistancePct, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, maxSlippagePct: p.maxSlippagePct, planTtlSec: p.planTtlSec, ordersSentTodayUtc: today, source: p.source, ...(journalUnreadable ? { journalUnreadable } : {}) };
+  } catch (e) {
+    policy = { unreadable: `${e?.pilotUser ? e.message : describeError(e)}. The opening tools refuse until it is fixed; close_position still works` };
+  }
   return {
     account,
     sttForGas: stt == null ? null : Number(Number(fmt(stt)).toFixed(4)),
@@ -101,7 +119,7 @@ export const accountInfo = async (deps) => {
     marginRequirementsUsd: { initial: num(ma.imReq), maintenance: num(ma.mmReq), closeOut: num(ma.cmReq) },
     positions,
     pendingBrackets: brackets,
-    policy: { maxNotionalUsd: p.maxNotionalUsd, minLiquidationDistancePct: p.minLiquidationDistancePct, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, maxSlippagePct: p.maxSlippagePct, planTtlSec: p.planTtlSec, ordersSentTodayUtc: ordersToday(deps), source: p.source },
+    policy,
     asOfBlock: Number(ma.asOfBlock),
   };
 };
@@ -138,7 +156,7 @@ const failTx = (deps, e, base) => {
 
 const refusePilot = (deps, base, rule, detail, next) => {
   deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "bracket", rules: [rule], reason: detail, next, ...base });
-  return { ok: false, refused_by: "pilot-policy", rule, reason: detail, next, ...base };
+  return { ok: false, refused_by: "pilot-policy", rule, reason: detail, next, sent: false, ...base };
 };
 
 // ---- bracket -----------------------------------------------------------------------------------
@@ -333,8 +351,9 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
   }
   // `sent` stays honest when a failure may have broadcast: true / "unknown" beat false.
   const maybeSent = fail.some((f) => f.sent === true || f.sent === "unknown" || f.tx || f.txsSeen);
+  result.sent = result.txs.length > 0 ? true : maybeSent ? "unknown" : false;
   try {
-    deps.journal.append({ kind: "cancel", sent: result.txs.length > 0 ? true : maybeSent ? "unknown" : false, ...result });
+    deps.journal.append({ kind: "cancel", ...result });
   } catch (e) {
     result.journalError = `the cancel landed but the journal write failed: ${describeError(e)}`;
   }

@@ -3,10 +3,53 @@ import { appendFileSync } from "node:fs";
 import { accountInfo, armedBrackets, bracket, cancelAll } from "../src/tools.mjs";
 import { renderDemo, renderCard, parseReceipts, EXPLORER, REPO } from "../src/demo.mjs";
 import { makeDeps, px, sol, SOL } from "./fixtures.mjs";
+import { planOrder, closePosition } from "../src/trader.mjs";
 
 const longSol = () => { const t = makeDeps(); t.state.pos = sol(0.3); return t; };
 
 describe("account", () => {
+  it("still lists positions and brackets when the policy file is invalid or the journal unreadable (what to close is a live read)", async () => {
+    const { deps } = longSol();
+    const bad = () => { throw Object.assign(new Error("policy file /tmp/p.json is invalid (file: must be a JSON object of policy keys); fix it, pilot does not fall back to defaults"), { pilotUser: true }); };
+    const a = await accountInfo({ ...deps, policy: bad });
+    expect(a.positions).toMatchObject([{ market: "SOL", side: "long", size: "0.3" }]);
+    expect(a.policy).toEqual({ unreadable: expect.stringMatching(/is invalid .* opening tools refuse until it is fixed; close_position still works/) });
+    const broken = { ...deps.journal, read: () => { throw new Error("journal line 3 is not valid JSON"); }, ordersToday: () => { throw new Error("journal line 3 is not valid JSON"); } };
+    const b = await accountInfo({ ...deps, journal: broken });
+    expect(b.positions).toHaveLength(1);
+    expect(b.policy).toMatchObject({ maxNotionalUsd: 25, ordersSentTodayUtc: null });
+    expect(b.policy.journalUnreadable).toMatch(/not valid JSON/);
+  });
+  it("every refusal answer has the same shape: refused_by, rule, reason, next, sent false", async () => {
+    const { deps, state } = makeDeps(); // flat: a bracket has no position to protect
+    expect(await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 })).toMatchObject({ ok: false, refused_by: "pilot-policy", rule: "noPosition", sent: false });
+    state.pos = sol(0.1);
+    state.bid = 0n;
+    expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: false, refused_by: "pilot-policy", rule: "emptyBook", next: "try again shortly", sent: false });
+    state.bid = px(102.5);
+    state.ask = 0n;
+    const p = await planOrder(deps, { market: "SOL", side: "long", size: "0.1" });
+    expect(p).toMatchObject({ verdict: "refused", refused_by: "pilot-policy", refusals: [{ rule: "emptyBook" }] });
+    const md = renderDemo(deps.journal.read());
+    expect(md).toMatch(/\| plan \| long 0\.1 SOL \| emptyBook \| no asks on the SOL book to fill against \| try later or another market \|/);
+  });
+  it("reads every stop id of a market in parallel (fired legs stay in the journal's set)", async () => {
+    const { deps, state } = longSol();
+    state.stops = ["11", "12", "13"].map((id) => ({ orderIdRaw: id, registry: SOL.stopRegistry }));
+    const c = deps.client();
+    let open = 0;
+    let peak = 0;
+    const slow = { ...c, getPerpStopOrder: async (r) => { open++; peak = Math.max(peak, open); await new Promise((res) => setTimeout(res, 5)); open--; return c.getPerpStopOrder(r); } };
+    await armedBrackets({ ...deps, client: () => slow }, "SOL");
+    expect(peak).toBe(3);
+  });
+  it("cancel_all says whether it sent anything", async () => {
+    const { deps, state } = longSol();
+    expect(await cancelAll(deps, { market: "SOL" })).toMatchObject({ nothingToCancel: true, sent: false });
+    state.stops = [{ orderIdRaw: "11", registry: SOL.stopRegistry }];
+    state.onChain.set("11", { registry: SOL.stopRegistry, isBid: false, owner: deps.account() });
+    expect(await cancelAll(deps, { market: "SOL" })).toMatchObject({ ok: true, sent: true });
+  });
   it("reports collateral, margin status, positions and policy headroom from chain reads", async () => {
     const { deps } = longSol();
     const a = await accountInfo(deps);

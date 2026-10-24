@@ -9,6 +9,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createServer } from "../src/server.mjs";
 import { readMarkets, createChain, writeMarkets, accountAddress, assertAccountMatchesKey, CHAIN } from "../src/client.mjs";
 import { acquireSignerLock } from "../src/signer-lock.mjs";
+import { onShutdown } from "../src/shutdown.mjs";
 import { createJournal } from "../src/journal.mjs";
 import { loadPolicy } from "../src/policy.mjs";
 import { renderDemo, renderCard, parseReceipts } from "../src/demo.mjs";
@@ -54,16 +55,20 @@ const chain = createChain((opts) => {
   lock ??= acquireSignerLock({ account: accountAddress(), chainId: CHAIN.id });
   return writer;
 });
+// The in-flight state the tools share (src/trader.mjs inflight): created here so shutdown can see it.
+const inflight = { opens: 0, markets: new Set(), unjournaled: [], unjournaledStops: [] };
 // The lock goes with the process: on exit, on a signal, and when the client closes stdin (a client
-// that crashed must not leave this server running and holding it).
+// that crashed must not leave this server running and holding it). Either way the process first
+// waits for writes in flight to be journaled (src/shutdown.mjs).
 process.on("exit", () => lock?.release());
-for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => process.exit(0));
-process.stdin.on("end", () => process.exit(0));
+const shutdown = onShutdown({ busy: () => inflight.markets.size > 0 });
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, shutdown);
+process.stdin.on("end", shutdown);
 const rpc = createPublicClient({ chain: CHAIN, transport: http() });
 
 const server = createServer({
   client, account: accountAddress, send: chain.send, chain, native: () => rpc.getBalance({ address: accountAddress() }),
-  journal: createJournal(), policy: () => loadPolicy(),
+  journal: createJournal(), policy: () => loadPolicy(), inflight,
 });
 await server.connect(new StdioServerTransport());
 // stdout is the MCP channel; logs go to stderr only.

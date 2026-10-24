@@ -75,6 +75,12 @@ describe("signer lock", () => {
     expect(acquireSignerLock({ account, chainId: 50383, dir, pid: 7, alive: () => false, now: () => Date.now() + 60_000 }).path).toBe(path);
     expect(readFileSync(path, "utf8")).toBe("7");
   });
+  it.skipIf(process.getuid?.() === 0)("a pid this user cannot signal (EPERM: another user's process, e.g. pid 1) is a reused pid, not a holder", () => {
+    const dir = fresh();
+    const path = join(dir, `signer-50383-${account.toLowerCase()}.lock`);
+    writeFileSync(path, "1"); // left by a server that died; pid 1 is now root's init
+    expect(readFileSync(acquireSignerLock({ account, chainId: 50383, dir }).path, "utf8")).toBe(String(process.pid));
+  });
   it("across real processes: a live child holding the lock refuses this process; after it exits, this process takes it", async () => {
     const dir = fresh();
     const mod = fileURLToPath(new URL("../src/signer-lock.mjs", import.meta.url));

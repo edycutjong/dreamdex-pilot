@@ -84,8 +84,9 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
 
   const touch = await readTouch(client, mk);
   if ((isBid && touch.ask === 0n) || (!isBid && touch.bid === 0n)) {
-    const row = deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "plan", action: "open", market: mk.baseSymbol, side, rules: ["emptyBook"] });
-    return { verdict: "refused", market: mk.baseSymbol, side, refusals: [{ rule: "emptyBook", detail: `no ${isBid ? "asks" : "bids"} on the ${mk.baseSymbol} book to fill against`, next: "try later or another market" }], journaled: row.at };
+    const refusals = [{ rule: "emptyBook", detail: `no ${isBid ? "asks" : "bids"} on the ${mk.baseSymbol} book to fill against`, next: "try later or another market" }];
+    const row = deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "plan", action: "open", market: mk.baseSymbol, side, requestedSize: size ?? null, notionalUsd: notionalUsd ?? null, rules: ["emptyBook"], refusals });
+    return { verdict: "refused", refused_by: "pilot-policy", market: mk.baseSymbol, side, refusals, journaled: row.at };
   }
   const price = limitPrice({ isBid, ...touch, tick, slippagePct: policy.maxSlippagePct });
   // Notional (the cap, notional_usd sizing) is valued at the highest price the order can fill at:
@@ -469,8 +470,8 @@ const closeLocked = async (deps, { policy, client, mk, u, note }) => {
   const isBid = pos.size < 0n; // a short closes with a buy
   if ((isBid && touch.ask === 0n) || (!isBid && touch.bid === 0n)) {
     const reason = `no ${isBid ? "asks" : "bids"} on the book to close against`;
-    deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "close", action: "close", market: mk.baseSymbol, rules: ["emptyBook"], reason, positionBefore: u.qty(pos.size) });
-    return { ok: false, refused_by: "pilot-policy", rule: "emptyBook", action: "close", market: mk.baseSymbol, reason, next: "try again shortly", positionBefore: u.qty(pos.size) };
+    deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "close", action: "close", market: mk.baseSymbol, rules: ["emptyBook"], reason, next: "try again shortly", positionBefore: u.qty(pos.size) });
+    return { ok: false, refused_by: "pilot-policy", rule: "emptyBook", action: "close", market: mk.baseSymbol, reason, next: "try again shortly", sent: false, positionBefore: u.qty(pos.size) };
   }
   const price = limitPrice({ isBid, ...touch, tick: BigInt(mk.tickSize), slippagePct: policy.maxSlippagePct });
   const raw = { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity: abs(pos.size), baseDecimals: mk.baseDecimals, quoteDecimals: mk.quoteDecimals ?? 18 };

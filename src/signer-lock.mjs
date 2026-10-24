@@ -15,8 +15,10 @@ const isAlive = (pid) => {
   try {
     process.kill(pid, 0);
     return true;
-  } catch (e) {
-    return e.code === "EPERM"; // exists, owned by another user
+  } catch {
+    // ESRCH: gone. EPERM: a process of another user, which is never a pilot server signing from this
+    // user's ~/.pilot, so a pid reused after a crash or a reboot (e.g. by a root daemon) is not a holder.
+    return false;
   }
 };
 
