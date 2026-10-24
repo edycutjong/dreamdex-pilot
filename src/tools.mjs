@@ -22,9 +22,11 @@ const liveStops = async (deps, mk, indexed) => {
   const account = deps.account().toLowerCase();
   const reg = mk.stopRegistry.toLowerCase();
   const ids = new Set(indexed.filter((s) => String(s.registry).toLowerCase() === reg).map((s) => String(s.orderIdRaw)));
-  for (const e of deps.journal.read()) {
+  const rows = deps.journal.read();
+  const cancelled = new Set(rows.filter((e) => e.kind === "cancel").flatMap((e) => (e.cancelledStops ?? []).map((c) => String(c.id))));
+  for (const e of rows) {
     if (e.kind !== "bracket" || e.market !== mk.baseSymbol) continue;
-    for (const id of [e.takeProfitStopId, e.stopLossStopId]) if (id) ids.add(String(id));
+    for (const id of [e.takeProfitStopId, e.stopLossStopId]) if (id && !cancelled.has(String(id))) ids.add(String(id));
   }
   const live = [];
   for (const id of ids) {
@@ -64,10 +66,21 @@ export const accountInfo = async (deps) => {
       unrealizedPnlUsd: an?.priceable ? num(an.unrealizedPnl) : null,
     });
   }
-  const bySymbol = new Map(markets.map((m) => [m.stopRegistry?.toLowerCase(), m.baseSymbol]));
-  const brackets = Array.isArray(stops)
-    ? stops.map((s) => ({ id: s.orderIdRaw, market: bySymbol.get(String(s.registry).toLowerCase()) ?? null, closes: s.isBid ? "short (buys)" : "long (sells)", triggerPrice: fmt(s.triggerPrice), when: s.triggerOperator === 0 ? "mark >= trigger" : "mark <= trigger" }))
-    : { unavailable: stops.error };
+  // Pending brackets: the indexer's list plus the ids pilot armed (confirmed live on chain), since
+  // the indexer lags a fresh bracket by seconds. Read failures are said, never shown as "none".
+  let brackets;
+  if (Array.isArray(stops)) {
+    brackets = [];
+    try {
+      for (const mk of markets) {
+        if (!mk.stopRegistry) continue;
+        for (const s of await liveStops(deps, mk, stops))
+          brackets.push({ id: s.id, market: mk.baseSymbol, closes: s.isBid ? "short (buys)" : "long (sells)", triggerPrice: fmt(s.triggerPrice), when: s.triggerOperator === 0 ? "mark >= trigger" : "mark <= trigger" });
+      }
+    } catch (e) {
+      brackets = { unavailable: describeError(e) };
+    }
+  } else brackets = { unavailable: stops.error };
   const p = deps.policy();
   return {
     account,

@@ -5,13 +5,17 @@ the transaction status/block/gas column is re-read from the Somnia Hideki testne
 
 Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl`, `p2-mcp-run-cc-3-journal.jsonl`, `p2-mcp-run-cc-4-journal.jsonl`, `p3-mcp-run-cc-journal.jsonl`, `p3-mcp-run-cc-2-journal.jsonl`, `p3-mcp-run-codex-journal.jsonl`, `p3-mcp-cli-client-journal.jsonl`, `p3-exchange-refusal-injected-journal.jsonl`, `p3-notes-journal.jsonl`
 
+Clients: cc = Claude Code (Anthropic); codex = Codex CLI (OpenAI, not Anthropic); mcp-cli-client = MCP Inspector CLI (read-only, no signing key); injected = in-process MCP client with the race injected
+
+The summary counts the journals listed above; attempts described only in a note are not in it.
+
 ## Summary
 
 - Real orders opened through the MCP tools: **8**
 - Positions closed: **8**
 - Brackets armed (take-profit + stop-loss): **2**
 - Cancels that sent a transaction: **2**
-- Refusals by pilot's policy: **11**; refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender, no market move happened; see Notes)
+- Refusals by pilot's policy: **11** rows (**4** distinct rules); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)
 
 ## Orders
 
@@ -55,7 +59,7 @@ Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl
 
 ## Refusals by pilot's policy (`refused_by: "pilot-policy"`)
 
-No transaction was sent for any of these.
+No transaction was sent for any of these. Counts are rows: some are scripted probes (for example a deliberately made-up plan id) or the same prompt run again.
 
 | time (UTC) | stage | order | rule | why | next safe action |
 |---|---|---|---|---|---|
@@ -73,15 +77,15 @@ No transaction was sent for any of these.
 
 ## Refusals by the exchange (`refused_by: "exchange"`)
 
-The order passed pilot's policy and was sent; the exchange reverted it and the reason is the decoded custom error. Rows marked **race injected** were provoked on purpose: the limit price was lowered in the sender before sending (see Notes), so the order was unfillable by construction and no market move happened. The revert, the decoded reason and the tx are real.
+The order passed pilot's policy and was sent; the exchange reverted it and the reason is the decoded custom error. Rows marked **race injected** were provoked on purpose: the limit price was lowered in the sender before sending (see Notes), so the order was unfillable by construction (no natural race). The revert, the decoded reason and the tx are real.
 
 | time (UTC) | stage | order | error | reason | next safe action | tx |
 |---|---|---|---|---|---|---|
-| 2026-10-24T02:50:27.409Z | chain | buy 0.1 SOL **(race injected, sent at 98.49)** | ImmediateOrCancelNoFill | the IOC order found nothing to fill at its limit price, so the exchange refused it; no position was opened | plan again from a fresh touch | `0x3f3f5ea8c9a614dc51179fd2252e301c9ca1c37e888df44a22511de7432ceffc` (reverted @ block 31581503, 86840 gas) |
+| 2026-10-24T02:56:05.402Z | chain | buy 0.1 SOL **(race injected, sent at 98.5)** | ImmediateOrCancelNoFill | the IOC order found nothing to fill at its limit price, so the exchange refused it; no position was opened | plan again from a fresh touch | `0x02e8bd0d09e60f45c3517e67c4f87537d661e2d8c8c52c3dc0cc0d8b34e929b1` (reverted @ block 31584882, 86840 gas) |
 
 ## Notes recorded in the journal
 
 - 2026-10-24T02:18:19.265Z: Earlier exchange refusal, outside the tools: scripts/exchange-refusal-check.mjs sent one IOC buy 5% under the ask straight through pilot's sender (limit 97.41, ask 102.54); the exchange reverted it as ImmediateOrCancelNoFill, tx 0x44dc12314f770217cad88c6eee8a5d9895abd7aa4185e6ba922536d63415a40d (evidence/p2-exchange-refusal-2026-10-24T02-18-19-265Z.json).
 - 2026-10-24T02:43:59.819Z: Natural exchange refusals through the tools: with the tightest slippage pilot allows (0.01%), scripts/exchange-refusal-via-mcp.mjs made 12 plan_order and 12 place_order calls on SOL over stdio MCP; 12 orders filled (each closed again: 12 closes) and 0 were refused by the exchange. No natural exchange refusal is recorded (evidence/p3-tight-slippage-attempts-journal.jsonl).
-- 2026-10-24T02:50:26.708Z: race injected by scripts/exchange-refusal-injected.mjs: the planned limit 103.68 was lowered 5% to 98.49 in the sender before sending, standing in for the book moving between place_order's freshness check and mining. No market move happened. Everything else is the real tool path.
+- 2026-10-24T02:56:04.645Z: race injected by scripts/exchange-refusal-injected.mjs: the planned limit 103.69 was lowered 5% to 98.5 in the sender before sending, standing in for the book moving between place_order's freshness check and mining. The order was unfillable by construction; no natural race. Everything else is the real tool path.
 

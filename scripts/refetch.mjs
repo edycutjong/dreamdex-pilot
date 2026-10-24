@@ -10,7 +10,7 @@ for (const f of process.argv.slice(2)) {
   for (const l of readFileSync(f, "utf8").split("\n")) {
     if (!l.trim()) continue;
     const e = JSON.parse(l);
-    for (const h of [e.tx, ...(e.txs ?? []).map((t) => t.tx)]) if (/^0x[0-9a-f]{64}$/.test(h ?? "")) hashes.add(h);
+    for (const h of [e.tx, ...(e.txs ?? []).map((t) => t.tx), ...(e.operatorGrantTxs ?? []), ...(e.txsSeen ?? [])]) if (/^0x[0-9a-f]{64}$/.test(h ?? "")) hashes.add(h);
   }
 }
 const pc = createPublicClient({ chain: CHAIN, transport: http() });

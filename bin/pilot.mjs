@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "../src/server.mjs";
-import { readMarkets, createChain, accountAddress, CHAIN } from "../src/client.mjs";
+import { readMarkets, createChain, accountAddress, assertAccountMatchesKey, CHAIN } from "../src/client.mjs";
 import { createJournal } from "../src/journal.mjs";
 import { loadPolicy } from "../src/policy.mjs";
 import { renderDemo, parseReceipts } from "../src/demo.mjs";
@@ -21,10 +21,20 @@ if (cmd === "journal") {
   const files = (opt("--journal") ?? createJournal().path).split(",");
   const entries = files.flatMap((f) => createJournal(f).read().map((e) => ({ ...e, _src: f.split("/").pop() })));
   const receipts = opt("--receipts") ? parseReceipts(readFileSync(opt("--receipts"), "utf8")) : new Map();
-  const md = renderDemo(entries, { receipts, sources: files.map((f) => f.split("/").pop()) });
+  const md = renderDemo(entries, { receipts, sources: files.map((f) => f.split("/").pop()), legend: opt("--legend") });
   if (opt("--out")) writeFileSync(opt("--out"), md);
   else process.stdout.write(md);
   process.exit(0);
+}
+
+// A key plus a PILOT_ACCOUNT that is not its address would read one account and trade another: stop now.
+if (process.env.PILOT_PRIVATE_KEY) {
+  try {
+    assertAccountMatchesKey();
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
 }
 
 // Reads need no key; the signing client is built on the first write only.

@@ -3,7 +3,7 @@
 // carries rows for BATCH placements (SDK perp/history.d.ts: "a singular placement leaves no row
 // here"), so for pilot's one-order sends the decoded revert is the source.
 const PLAIN = {
-  ImmediateOrCancelNoFill: ["the IOC order found nothing to fill at its limit price, so the exchange refused it; no position was opened", "plan again: the book moved, a fresh plan prices from the new touch"],
+  ImmediateOrCancelNoFill: ["the IOC order found nothing to fill at its limit price, so the exchange refused it; no position was opened", "plan again: a fresh plan prices from the current touch"],
   FillOrKillNotFillable: ["the fill-or-kill order could not fill completely, so the exchange refused it", "plan a smaller size"],
   InsufficientMargin: ["the margin account does not have enough collateral for this order", "plan a smaller size or deposit USDso"],
   InsufficientMarginForOrder: ["the margin account does not have enough collateral for this order", "plan a smaller size or deposit USDso"],

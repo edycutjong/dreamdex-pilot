@@ -1,5 +1,5 @@
-// Tries to provoke a REAL exchange refusal through the public MCP tools only: a policy with the
-// tightest slippage pilot allows (0.01% = 1 bp) leaves almost no room, so if the book ticks away
+// Tries to provoke a REAL exchange refusal through the public MCP tools only: a policy with a
+// 0.01% (1 bp) slippage bound, the smallest that leaves any room above the touch, leaves almost no room, so if the book ticks away
 // between place_order's freshness check and mining, the IOC finds nothing to fill and the
 // exchange reverts it. Nothing is faked: every attempt is plan_order -> place_order over stdio
 // to the real server; a filled attempt is closed again. Stops at the first exchange refusal.

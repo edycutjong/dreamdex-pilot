@@ -42,10 +42,13 @@ export const makeDeps = (over = {}) => {
     getMarginAccount: async () => ({ unlockedCollateralBalance: 40n * E18, lockedCollateral: 2n * E18, equity: 42n * E18, withdrawable: 40n * E18, imReq: E18, mmReq: E18 / 2n, cmReq: E18 / 4n, marginStatus: "Healthy", asOfBlock: 31555000n, activePerpPools: state.pos === 0n ? [] : [SOL.poolAddress.toUpperCase()] }),
     listPerpStopOrders: async () => { if (state.listError) throw state.listError; return state.indexLag ? [] : state.stops; },
     // Live on chain = a row in state.onChain, or any pending indexer row (owned by the account).
-    getPerpStopOrder: async ({ orderId }) => {
+    getPerpStopOrder: async ({ registry, orderId }) => {
+      if (state.stopReadError) throw state.stopReadError;
       const id = String(orderId);
       const row = state.onChain.get(id) ?? state.stops.find((s) => String(s.orderIdRaw) === id);
-      return row ? { owner: row.owner ?? "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b", isBid: row.isBid ?? false, triggerPrice: BigInt(row.triggerPrice ?? 1), triggerOperator: row.triggerOperator ?? 0 } : null;
+      // Honours the registry the id was asked of, like the chain: ids are per registry.
+      if (!row || (row.registry && String(row.registry).toLowerCase() !== String(registry).toLowerCase())) return null;
+      return { owner: row.owner ?? "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b", isBid: row.isBid ?? false, triggerPrice: BigInt(row.triggerPrice ?? 1), triggerOperator: row.triggerOperator ?? 0 };
     },
     getPerpStopOrderSomiPayment: async () => 15n * 10n ** 16n,
   };
@@ -59,7 +62,7 @@ export const makeDeps = (over = {}) => {
     placeStops: async (p) => {
       state.stopCalls.push(p);
       if (state.stopError) throw state.stopError;
-      state.onChain.set("11", { isBid: p.isBid }); state.onChain.set("12", { isBid: p.isBid });
+      state.onChain.set("11", { registry: p.registry, isBid: p.isBid }); state.onChain.set("12", { registry: p.registry, isBid: p.isBid });
       return { hash: `0x${"b".repeat(64)}`, receipt: { blockNumber: 31556000n, status: "success", gasUsed: 2_000_000n }, stopOrderId: 11n, pairedStopOrderId: 12n, txsSent: state.grantTx ? [state.grantTx, `0x${"b".repeat(64)}`] : [`0x${"b".repeat(64)}`] };
     },
     cancelStops: async (p) => { state.cancelCalls.push(["stops", p]); if (state.cancelStopsError) throw state.cancelStopsError; state.stops = []; state.onChain.clear(); return { hash: `0x${"c".repeat(64)}`, receipt: { blockNumber: 31556100n, status: "success" } }; },

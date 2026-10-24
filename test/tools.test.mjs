@@ -256,7 +256,7 @@ describe("DEMO.md", () => {
   it("counts only what the journal holds and shows the receipts", () => {
     const md = renderDemo(rows, { receipts, sources: ["j.jsonl"] });
     expect(md).toMatch(/Real orders opened through the MCP tools: \*\*1\*\*/);
-    expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\*; refusals by the exchange: \*\*1\*\*/i);
+    expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\* rows \(\*\*1\*\* distinct rules\); refusals by the exchange: \*\*1\*\*/i);
     expect(md).toContain(`\`0x${"1".repeat(64)}\` | success @ block 100, 1500000 gas`);
     expect(md).toContain("ImmediateOrCancelNoFill");
     expect(md).toContain("reverted @ block 102");
@@ -291,7 +291,7 @@ describe("DEMO.md honesty", () => {
     const md = renderDemo([{ ...refusal, injected: true, sentLimitPrice: "98.4" }]);
     expect(md).toMatch(/refusals by the exchange: \*\*1\*\* \(1 of them with the race injected/);
     expect(md).toContain("**(race injected, sent at 98.4)**");
-    expect(md).toContain("no market move happened");
+    expect(md).toContain("no natural race");
     expect(md).not.toContain("the book moved");
   });
   it("keeps a natural exchange refusal as it is", () => {
@@ -303,5 +303,63 @@ describe("DEMO.md honesty", () => {
     const md = renderDemo([{ at: "2026-10-24T05:00:00.000Z", kind: "order", direction: "long", size: "0.1", market: "SOL", limitPrice: "1", filled: "0.1", positionAfter: "0.1", tx: "0x" + "8".repeat(64), _src: "run-a.jsonl" }]);
     expect(md).toContain("| journal |");
     expect(md).toContain("| run-a.jsonl |");
+  });
+});
+
+describe("stop ownership and failed reads (round 2)", () => {
+  it("never cancels a stop that the chain says another account owns, even if the indexer lists it", async () => {
+    const { deps, state } = longSol();
+    state.stops = [{ orderIdRaw: "55", registry: SOL.stopRegistry, isBid: false }, { orderIdRaw: "56", registry: SOL.stopRegistry, isBid: false }];
+    state.onChain.set("55", { registry: SOL.stopRegistry, owner: "0x000000000000000000000000000000000000dEaD" });
+    const r = await cancelAll(deps, { market: "SOL" });
+    expect(r.cancelledStops.map((s) => s.id)).toEqual(["56"]);
+  });
+  it("asks the chain about an id on the registry it belongs to, not any registry", async () => {
+    const { deps, state } = longSol();
+    state.stops = [{ orderIdRaw: "70", registry: "0xdeadbeef00000000000000000000000000000000", isBid: false }];
+    expect((await cancelAll(deps, { market: "SOL" })).cancelledStops).toEqual([]);
+  });
+  it("bracket sends nothing when the on-chain stop read throws", async () => {
+    const { deps, state } = longSol();
+    state.stops = [{ orderIdRaw: "11", registry: SOL.stopRegistry }];
+    state.stopReadError = new Error("rpc 502");
+    expect(await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 })).toMatchObject({ ok: false, sent: false });
+    expect(state.stopCalls).toEqual([]);
+  });
+  it("cancel_all reports a failed on-chain stop read instead of 'nothing to cancel'", async () => {
+    const { deps, state } = longSol();
+    state.stops = [{ orderIdRaw: "11", registry: SOL.stopRegistry }];
+    state.stopReadError = new Error("rpc 502");
+    const r = await cancelAll(deps, { market: "SOL" });
+    expect(r.ok).toBe(false);
+    expect(r.nothingToCancel).toBe(false);
+    expect(r.failures[0]).toMatchObject({ stage: "read stops" });
+  });
+  it("a corrupt journal line stops bracket and cancel_all before anything is sent", async () => {
+    const { deps, state, journal } = longSol();
+    const { appendFileSync } = await import("node:fs");
+    appendFileSync(journal.path, "not json\n");
+    const b = await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 }).catch((e) => e);
+    expect(b instanceof Error ? b.message : b.error).toMatch(/not valid JSON/);
+    expect(state.stopCalls).toEqual([]);
+  });
+  it("account shows a just-armed bracket the indexer has not listed, and says when it cannot read", async () => {
+    const { deps, state } = longSol();
+    await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 });
+    state.indexLag = true;
+    expect((await accountInfo(deps)).pendingBrackets.map((b) => b.id).sort()).toEqual(["11", "12"]);
+    state.stopReadError = new Error("rpc 502");
+    expect((await accountInfo(deps)).pendingBrackets.unavailable).toMatch(/rpc 502/);
+  });
+  it("skips journaled stop ids that a later cancel already removed (no endless chain reads)", async () => {
+    const { deps, state } = longSol();
+    await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 });
+    await cancelAll(deps, { market: "SOL" });
+    let reads = 0;
+    const orig = deps.client().getPerpStopOrder;
+    deps.client().getPerpStopOrder = async (a) => { reads++; return orig(a); };
+    state.indexLag = true;
+    await cancelAll(deps, { market: "SOL" });
+    expect(reads).toBe(0);
   });
 });
