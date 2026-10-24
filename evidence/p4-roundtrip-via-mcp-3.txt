@@ -1,0 +1,99 @@
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "verdict": "ok",
+    "plan_id": "plan_d2f3ccc81626",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1",
+    "limitPrice": "103.76",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.71",
+      "ask": "102.74"
+    },
+    "markPrice": "102.620807094746",
+    "notionalUsd": 10.376,
+    "positionNow": "0",
+    "positionAfter": "0.1",
+    "positionNotionalAfterUsd": 10.376,
+    "marginLockUsd": 0.6327,
+    "projectedLeverageX": 0.2076,
+    "liquidationPrice": null,
+    "liquidationDistancePct": null,
+    "liquidationNote": "no reachable liquidation price at this size",
+    "exchangeMaxSize": "7.82",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 25,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_d2f3ccc81626 within 60s to send it"
+  }
+}
+{
+  "tool": "place_order",
+  "args": {
+    "plan_id": "plan_d2f3ccc81626"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "ok": true,
+    "action": "open",
+    "plan_id": "plan_d2f3ccc81626",
+    "market": "SOL",
+    "side": "buy",
+    "direction": "long",
+    "size": "0.1",
+    "limitPrice": "103.76",
+    "tx": "0x08169928dd9a8d524bff438b88f3a301e9c557b12a2845038b0c212045d10fe6",
+    "block": 31608766,
+    "status": "success",
+    "gasUsed": "1647024",
+    "orderId": "7710739022810600088162",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0.1"
+  }
+}
+{
+  "tool": "close_position",
+  "args": {
+    "market": "SOL"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "ok": true,
+    "action": "close",
+    "market": "SOL",
+    "side": "sell",
+    "direction": "close long",
+    "size": "0.1",
+    "limitPrice": "101.69",
+    "positionBefore": "0.1",
+    "tx": "0xa38355ba1f3ff0d4dc3a3ed3d664df6ee9ce8f0c35fcfd1a22d5e337c1a1d231",
+    "block": 31608773,
+    "status": "success",
+    "gasUsed": "1533178",
+    "orderId": "7710739022810600088163",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0"
+  }
+}
