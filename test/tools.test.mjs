@@ -331,7 +331,7 @@ describe("DEMO.md", () => {
   it("counts only what the journal holds and shows the receipts", () => {
     const md = renderDemo(rows, { receipts, sources: ["j.jsonl"] });
     expect(md).toMatch(/Real orders opened through the MCP tools: \*\*1\*\*/);
-    expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\* rows \(\*\*1\*\* distinct rules\): \*\*1\*\* by the policy limits \([a-zA-Z]+\), \*\*0\*\* by pilot's own checks \(none\); refusals by the exchange: \*\*1\*\*/i);
+    expect(md).toMatch(/refusals by pilot, nothing sent: \*\*1\*\* rows \(\*\*1\*\* distinct rules\): \*\*1\*\* by the policy limits \([a-zA-Z]+\), \*\*0\*\* by pilot's own checks \(none\); refusals by the exchange: \*\*1\*\*/i);
     expect(md).toContain(`[\`0x${"1".repeat(64)}\`](${EXPLORER}/tx/0x${"1".repeat(64)}) | success @ block 100, 1500000 gas`);
     expect(md).toContain("ImmediateOrCancelNoFill");
     expect(md).toContain("reverted @ block 102");
@@ -445,6 +445,21 @@ describe("DEMO.md honesty", () => {
     const md = renderDemo([{ at: "2026-10-24T05:00:00.000Z", kind: "order", direction: "long", size: "0.1", market: "SOL", limitPrice: "1", filled: "0.1", positionAfter: "0.1", tx: "0x" + "8".repeat(64), _src: "run-a.jsonl" }]);
     expect(md).toContain("| journal |");
     expect(md).toContain("| run-a.jsonl |");
+  });
+  it("shows which journal each refusal came from, so a refusal can be tied to its client", () => {
+    const md = renderDemo([{ at: "2026-10-24T02:41:11.799Z", kind: "refusal", refused_by: "pilot-policy", stage: "plan", side: "short", size: "0.0005", market: "BTC", rules: ["maxNotionalUsd"], refusals: [{ rule: "maxNotionalUsd", detail: "over the cap", next: "reduce size to at most 0.00031 BTC" }], _src: "p3-mcp-run-codex-journal.jsonl" }]);
+    expect(md).toContain("## Refusals by pilot (`refused_by: \"pilot-policy\"`): your policy limits and pilot's own checks");
+    expect(md).toContain("| next safe action | journal |");
+    expect(md).toContain("| reduce size to at most 0.00031 BTC | p3-mcp-run-codex-journal.jsonl |");
+  });
+  it("renders early buy/sell rows as long/short like the later rows", () => {
+    const md = renderDemo([
+      { at: "2026-10-24T02:17:40.578Z", kind: "order", action: "open", side: "buy", size: "0.1", market: "SOL", limitPrice: "103.58", filled: "0.1", positionAfter: "0.1", tx: "0x" + "a".repeat(64) },
+      { at: "2026-10-24T02:17:50.000Z", kind: "close", action: "close", side: "sell", size: "0.1", market: "SOL", limitPrice: "101.5", positionAfter: "0", tx: "0x" + "b".repeat(64) },
+    ]);
+    expect(md).toContain("| long 0.1 SOL (IOC, limit 103.58)");
+    expect(md).toContain("| close long 0.1 SOL (IOC, limit 101.5)");
+    expect(md).not.toMatch(/\| (buy|sell) 0\.1 SOL/);
   });
 });
 
