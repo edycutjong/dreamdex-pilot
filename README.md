@@ -1,6 +1,6 @@
 # Pilot
 
-Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that puts limits you set between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on the Somnia Tokyo testnet: it checks every opening order against your position cap, liquidation distance and allowed markets, checks again on live state when it sends, names a next step the agent can take when it refuses, and writes a receipt for each transaction.
 
 ```
 agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
@@ -10,33 +10,45 @@ Built for the dreamDEX Perps Bounty, MVP track, category bots and agents.
 
 ## Demo excerpt
 
-From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer. A real order and its close, driven by Claude Code, and an order from a second client:
+Every transaction below was re-read from the RPC; each order hash opens its fill on dreamDEX's Hideki markets explorer.
+
+**Refused, then steered: Codex CLI (OpenAI).** Asked for a 0.0005 BTC short and told to stay under the policy (`evidence/p3-prompt-codex.txt`), Codex planned it and pilot refused it (rule `maxNotionalUsd`), with nothing sent:
+
+> the position this order leaves would be $40.11 notional, above the $25 cap per market
+> next safe action: reduce size to at most 0.00031 BTC
+
+Codex planned exactly 0.00031 BTC and it filled. From [`DEMO.md`](DEMO.md) (journal `p3-mcp-run-codex-journal.jsonl`), with a Claude Code round trip under it:
 
 | what | tx | on chain |
 |---|---|---|
-| long 0.1 SOL (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
+| short 0.00031 BTC from Codex CLI, the size pilot named; plan_order showed liquidation at 234283.29, 189.78% from mark | [`0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080) | success @ block 31576050 |
+| close short 0.00031 BTC | [`0xc0b61e172fc9ad9940aeec271a9294450caed65668e8b8844acadeeeb9454113`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xc0b61e172fc9ad9940aeec271a9294450caed65668e8b8844acadeeeb9454113) | success @ block 31576075 |
+| long 0.1 SOL from Claude Code (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
 | close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
-| short 0.00031 BTC from Codex CLI (OpenAI); plan_order first showed liquidation at 234283.29, 189.78% from mark | [`0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080) | success @ block 31576050 |
 
-And a refusal, with nothing sent. With 0.2 SOL already open, Claude Code was told to request $60 more SOL (scripted prompt, `evidence/p6-prompt-cc.txt`) and planned it (an order of $59, sized at 0.57 SOL). The cap is on the position the order leaves, so pilot (rule `maxNotionalUsd`) answered:
+**The cap is on the position, not the order.** With 0.2 SOL open (planned at $20.54), Claude Code, limited to pilot's tools, planned a 0.1 SOL add: about $10, under the $25 cap on its own. Pilot refused it, with nothing sent:
 
-> the position this order leaves would be $79.80 notional, above the $25 cap per market
+> the position this order leaves would be $30.80 notional, above the $25 cap per market
 > next safe action: no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room
 
-The agent planned nothing more. Brackets and cancels are on chain too, e.g. bracket `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f` (take-profit 105.55, stop-loss 100.43, success @ block 31581911) and its cancel `0x60b69767239c2d5647d7810535d556ebaddfb69c7423384a761658f98579cf31` (success @ block 31581985); see the Brackets and Cancels sections of `DEMO.md`.
+The agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b) (block 31928406), close [`0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324) (block 31928458), both success on the RPC re-read (`evidence/p9-undercap-cc.txt`, a run on the current code, outside the `DEMO.md` counts).
+
+**Liquidation distance.** Under a test policy that lifts the cap to $1000 (plans only, nothing sent), a 3 SOL long (6.7x) was refused: "liquidation would sit 12.80% from mark, closer than the 15% minimum" (`DEMO.md`, journal `p6-liquidation-rule-journal.jsonl`).
+
+Brackets and cancels are on chain too, e.g. bracket `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f` (take-profit 105.55, stop-loss 100.43, success @ block 31581911) and its cancel `0x60b69767239c2d5647d7810535d556ebaddfb69c7423384a761658f98579cf31` (success @ block 31581985); see the Brackets and Cancels sections of `DEMO.md` (the explorer shows fills only, so bracket and cancel hashes are not linked; `DEMO.md` re-reads them from the RPC).
 
 ## Who it is for
 
-Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`pilot journal --card`).
+Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`node bin/pilot.mjs journal --card`).
 
-Testnet only: Somnia Hideki (chain 50383), which the bounty listing calls the "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
+Testnet only: the Somnia Tokyo testnet, as the bounty listing names it (Hideki, chain 50383). Use a burner key, never a wallet that holds anything real.
 
 ## What pilot adds over handing the agent the SDK
 
 Give an agent the SDK and a key and it can send any order the exchange accepts. A trading form shows a person the numbers; pilot puts your limits between the agent and the exchange:
 
 - **Limits no pilot tool can edit.** They live in a file that no pilot tool writes (`policy` is read-only).
-- **The cap is on the position, not the order**, so small orders cannot stack past it (see the $60 refusal above).
+- **The cap is on the position, not the order**, so small orders cannot stack past it (see the 0.1 SOL refusal above).
 - **Checked twice.** The policy, the liquidation distance and the margin are checked when the order is planned and again, on live state, when it is sent. A plan is one-shot and expires (60 seconds by default).
 - **A next step, not just a no.** A refusal names the rule and a next safe action the agent can act on ("plan at least 0.1 SOL", "pick one of BTC, ETH, SOL"), and says so when no order fits.
 - **It carries over between sessions.** Limits and the journal live in `~/.pilot`, so every new agent session starts from the same limits, the daily order cap counts across sessions and restarts, and the journal grows into one record of everything your agents did there.
@@ -67,20 +79,40 @@ npm ci
 npm test
 ```
 
-The server reads the key from the environment of the process that starts it. Export it in the shell you launch your client from (reads work without a key if you set `PILOT_ACCOUNT` to a public address):
+**Try it with no key.** Reads work without a key when `PILOT_ACCOUNT` names a public address; this one is the demo burner (the `from` of every transaction in `DEMO.md`). The MCP Inspector does not hand your shell's environment to the server, so values go in with `-e`. The second call is refused by the default $25 cap, with nothing sent (`evidence/p9-keyless-inspector.txt`):
 
 ```bash
-export PILOT_PRIVATE_KEY=0x...   # testnet burner key (a wallet export without 0x works too)
+npx @modelcontextprotocol/inspector --cli -e PILOT_ACCOUNT=0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b node bin/pilot.mjs --method tools/call --tool-name account
+npx @modelcontextprotocol/inspector --cli -e PILOT_ACCOUNT=0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b node bin/pilot.mjs --method tools/call --tool-name plan_order --tool-arg market=SOL --tool-arg side=long --tool-arg notional_usd=60
 ```
 
-Never paste or screenshot the key, or a terminal where it is exported.
+**To trade**, the server reads the key from the environment of the process that starts it. Set it in the shell you launch your client from, without echoing it or leaving it in your shell history:
+
+```bash
+read -rs PILOT_PRIVATE_KEY && export PILOT_PRIVATE_KEY   # paste a testnet burner key, then Enter (a wallet export without 0x works too)
+```
+
+Never paste or screenshot the key, or a terminal where it is exported. Pilot guards its own tools only: a client that also has a shell or file tools could read the key from the environment it inherits or edit your policy file, so trade with those tools off (Claude Code and Codex lines below).
 
 Fund the burner before the first order: STT for gas (dreamDEX's docs: sign in at [app.testnet.dreamdex.io](https://app.testnet.dreamdex.io/perps), Link a Bot with the key's address, then Send it or Top up) and USDso collateral (or the docs' one-time 1,000 paper USDso credit; paper USDso opens positions only in its allowlisted markets, and `plan_order` refuses the others as `voucherBlocked`). `account` shows both balances.
+
+**No LLM, one real round trip** (sends real testnet transactions with your key: plan → place → close over stdio; `--bracket` also arms a bracket and cancels it)
+
+```bash
+PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 --bracket
+```
 
 **Claude Code**
 
 ```bash
 claude mcp add pilot -- node "$PWD/bin/pilot.mjs"
+```
+
+For a trading session with pilot's tools only (no shell, no file tools; `--tools ""` goes last). Checked with a throwaway key: the agent listed only pilot's nine tools, could not read the key, and could not write the policy file (`evidence/p9-restricted-claude-code.txt`):
+
+```bash
+mkdir -p ~/.pilot && printf '{"mcpServers":{"pilot":{"command":"node","args":["%s/bin/pilot.mjs"]}}}\n' "$PWD" > ~/.pilot/claude-mcp.json
+claude --strict-mcp-config --mcp-config ~/.pilot/claude-mcp.json --tools ""
 ```
 
 **Codex CLI** (`~/.codex/config.toml`; `env_vars` passes the key through from your shell)
@@ -92,18 +124,19 @@ args = ["/path/to/dreamdex-pilot/bin/pilot.mjs"]
 env_vars = ["PILOT_PRIVATE_KEY"]
 ```
 
-**MCP Inspector** (plan → place needs UI mode; the CLI line is for one-shot calls, see Honest limits; no Inspector-placed order is in the receipts)
+For a trading session, start Codex with a read-only sandbox and `PILOT_*` kept out of its shell. Codex keeps a shell; in a check with a throwaway key it saw `PILOT_PRIVATE_KEY` unset and its write to the policy file was refused (`evidence/p9-restricted-codex.txt`):
+
+```bash
+codex -s read-only -c 'shell_environment_policy.exclude=["PILOT_*"]'
+```
+
+**MCP Inspector** (plan → place needs UI mode; the CLI line is for one-shot calls, see Honest limits; no Inspector-placed order is in the receipts; pass environment values with `-e`, as in the no-key lines above)
 
 ```bash
 npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
 npx @modelcontextprotocol/inspector --cli node "$PWD/bin/pilot.mjs" --method tools/list
 ```
 
-**No LLM, one real round trip** (sends real testnet transactions with your key: plan → place → close over stdio; `--bracket` also arms a bracket and cancels it)
-
-```bash
-PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 --bracket
-```
 
 ## Receipts
 
@@ -119,9 +152,10 @@ Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.ap
 https://github.com/edycutjong/dreamdex-pilot
 ```
 
-A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL (`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
+X post 3 (below) shares this card.
 
-One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
+A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL ([`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c)), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
+
 
 ## Safety
 
@@ -134,10 +168,12 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 ## Honest limits
 
 - Testnet only. Nothing here has run on mainnet. Moving there means changing the chain, contract addresses and indexer in `src/client.mjs`, the network name in `src/server.mjs` and the explorer in `src/demo.mjs`, and re-checking that every market shares one margin bank, which `account` assumes (true for all 21 Hideki markets on 2026-10-24, `evidence/p8-r05-markets-check.txt`, from `scripts/markets-check.mjs`; the assumption is in `src/tools.mjs`).
+- One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
+- A close is a plain IOC order: the SDK's reduce-only intent exists for stop orders (`bracket`) only. If something else shrinks the position while a close is in flight (a bracket firing, another client), the close can open the other side; `close_position` reads the position back and says so (`flipped`).
 - No Somnia Reactivity or Somnia Agents yet: pilot reads and writes through the markets SDK only.
 - If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.
-- Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, deny the client's shell and file tools (both clients have permission settings) and keep the burner small.
+- Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, turn those tools off (the Claude Code and Codex lines in Run it, each checked with a throwaway key) and keep the burner small.
 - Plans live in the server's memory only, so restarting the server drops them.
 - At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49.50, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
 - MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
