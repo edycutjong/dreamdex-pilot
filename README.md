@@ -119,6 +119,8 @@ Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.ap
 https://github.com/edycutjong/dreamdex-pilot
 ```
 
+A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL (`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
+
 One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
 
 ## Safety

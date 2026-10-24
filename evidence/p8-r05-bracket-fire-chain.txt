@@ -1,0 +1,8 @@
+{
+ "at": "2026-10-24T11:24:46.731Z",
+ "indexer": []
+}
+{"registry":"0x85a0879d19777c343eb317a890d5058ab92b8f5d","orderId":"2527203938098208573552","onChain":"null (not live)"}
+{"registry":"0x85a0879d19777c343eb317a890d5058ab92b8f5d","orderId":"350488137400481482865","onChain":"null (not live)"}
+{"solPositionSize":"0"}
+indexer listPerpStopOrders for the account returned [] at 2026-10-24T11:25Z (no terminal-stop history served), so the fired leg is read from the chain only
