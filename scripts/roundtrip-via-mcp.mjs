@@ -25,8 +25,10 @@ const transport = new StdioClientTransport({
 });
 const client = new Client({ name: "roundtrip-via-mcp", version: "0" });
 await client.connect(transport);
-const call = async (name, args) => {
+// Any tool error fails the run (exit 1), except where one is the point (the broken policy file).
+const call = async (name, args, { errorExpected = false } = {}) => {
   const r = await client.callTool({ name, arguments: args });
+  if (!!r.isError !== errorExpected) process.exitCode = 1;
   let body = r.content[0].text;
   try {
     body = JSON.parse(body);
@@ -51,9 +53,12 @@ try {
     if (placed.ok && withBracket) await call("bracket", { market, take_profit_pct: 3, stop_loss_pct: 2 });
     if (policyFile) {
       writeFileSync(policyFile, JSON.stringify({ maxSlippagePct: 50 }) + "\n"); // above the schema's 10: invalid
-      await call("policy", {}); // shows the error every opening tool now returns
+      await call("policy", {}, { errorExpected: true }); // shows the error every opening tool now returns
     }
-    if (placed.ok || placed.sent !== false) await call("close_position", { market });
+    if (placed.ok || placed.sent !== false) {
+      const closed = await call("close_position", { market });
+      if (!closed.ok || closed.positionAfter !== "0") process.exitCode = 1; // not flat: the round trip failed
+    }
     if (withBracket) await call("cancel_all", { market });
   }
 } finally {

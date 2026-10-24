@@ -325,6 +325,16 @@ describe("DEMO.md", () => {
     expect(md).toContain("| place | plan plan_abc | planExpired |");
   });
 
+  it("counts a close as a position closed only when its read-back says flat (an IOC can fill part; a read-back can fail)", () => {
+    const tx = (c) => "0x" + c.repeat(64);
+    const closes = [
+      { at: "2026-10-24T06:00:00.000Z", kind: "close", action: "close", market: "SOL", positionBefore: "0.2", positionAfter: "0", tx: tx("5") },
+      { at: "2026-10-24T06:01:00.000Z", kind: "close", action: "close", market: "SOL", positionBefore: "0.2", positionAfter: "0.05", tx: tx("6") },
+      { at: "2026-10-24T06:02:00.000Z", kind: "close", action: "close", market: "SOL", positionBefore: "0.05", positionAfter: null, readBack: "failed", tx: tx("7") },
+    ];
+    expect(renderDemo(closes)).toContain("- Positions closed (flat on the read-back after the close): **1**; **2** more close transactions left a position or had no read-back");
+    expect(renderCard(closes)).toContain("0 orders opened, 1 closed (+2 not confirmed flat), 0 brackets");
+  });
   it("journal --card: counts from the journal, the latest fill on the explorer, a link back, fits a post", () => {
     const card = renderCard(rows);
     expect(card.split("\n")[0]).toBe("My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:");

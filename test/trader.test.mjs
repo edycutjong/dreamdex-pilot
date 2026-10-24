@@ -201,6 +201,17 @@ describe("place_order", () => {
     expect(await placeOrder({ ...deps, send: queued(() => {}) }, { plan_id: p3.plan_id })).toMatchObject({ ok: true }); // nothing changed: it sends
     expect(state.sends).toHaveLength(1);
   });
+  it("a slippage limit tightened while the order waited for the writer refuses it at broadcast (its limit used the old one)", async () => {
+    const { deps, state } = makeDeps();
+    let policy = { ...DEFAULT_POLICY, source: "test" };
+    const d = { ...deps, policy: () => policy };
+    const p1 = await plan(d);
+    const queued = async (o, check) => { policy = { ...policy, maxSlippagePct: 0.1 }; await check(); return deps.send(o); };
+    const r = await placeOrder({ ...d, send: queued }, { plan_id: p1.plan_id });
+    expect(r).toMatchObject({ ok: false, rule: "maxSlippagePct", stage: "send", sent: false });
+    expect(r.reason).toMatch(/0\.1% now, the order's limit was priced at 1%/);
+    expect(state.sends).toHaveLength(0);
+  });
   it("re-runs the liquidation preview at broadcast: an order on another market that went first can move it (one shared margin bank)", async () => {
     const { deps, state } = makeDeps();
     state.liq = { ...state.liq, projectedLiquidationPrice: px(82) }; // 20% from mark when planned and at place

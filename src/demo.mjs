@@ -6,6 +6,7 @@ import { LIMIT_RULES } from "./policy.mjs";
 // A refusal row is "by my limits" when one of its rules is a policy limit (LIMIT_RULES); the rest are
 // pilot's own checks (a size under the market minimum, an unknown, used or expired plan, ...).
 const isLimit = (e) => (e.rules ?? []).some((r) => LIMIT_RULES.includes(r));
+const isFlat = (e) => e.positionAfter === "0";
 
 const short = (h) => (h ? `${h.slice(0, 10)}…${h.slice(-6)}` : "-");
 const cell = (v) => String(v ?? "-").replace(/\|/g, "\\|").replace(/\n/g, " ");
@@ -55,7 +56,10 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   out.push("The summary counts the journals listed above; attempts described only in a note are not in it.", "");
   out.push("## Summary", "");
   out.push(`- Real orders opened through the MCP tools: **${orders.length}**`);
-  out.push(`- Positions closed: **${closes.length}**`);
+  // A close is an IOC: it can fill part of the position, and its read-back can fail. Only a close whose
+  // read-back says flat counts as a position closed.
+  const flat = closes.filter(isFlat);
+  out.push(`- Positions closed (flat on the read-back after the close): **${flat.length}**${closes.length > flat.length ? `; **${closes.length - flat.length}** more close transactions left a position or had no read-back` : ""}`);
   out.push(`- Brackets armed (take-profit + stop-loss): **${brackets.length}**`);
   out.push(`- Cancels that sent a transaction: **${cancels.length}**`);
   const injected = byExchange.filter((e) => e.injected);
@@ -123,7 +127,7 @@ export const renderCard = (entries, { explorer = EXPLORER, repo = REPO } = {}) =
   const last = fills.sort((a, b) => String(a.at).localeCompare(String(b.at))).at(-1);
   return [
     "My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:",
-    `${by("order").length} orders opened, ${by("close").length} closed, ${by("bracket").length} brackets, ${refusals.length} refused with nothing sent (${refusals.filter(isLimit).length} by my limits).`,
+    `${by("order").length} orders opened, ${by("close").filter(isFlat).length} closed${by("close").some((e) => !isFlat(e)) ? ` (+${by("close").filter((e) => !isFlat(e)).length} not confirmed flat)` : ""}, ${by("bracket").length} brackets, ${refusals.length} refused with nothing sent (${refusals.filter(isLimit).length} by my limits).`,
     ...(last ? [`Latest fill: ${explorer}/tx/${last.tx}`] : []),
     repo,
   ].join("\n") + "\n";

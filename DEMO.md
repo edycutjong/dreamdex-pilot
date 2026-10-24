@@ -14,7 +14,7 @@ The summary counts the journals listed above; attempts described only in a note 
 ## Summary
 
 - Real orders opened through the MCP tools: **9**
-- Positions closed: **9**
+- Positions closed (flat on the read-back after the close): **9**
 - Brackets armed (take-profit + stop-loss): **2**
 - Cancels that sent a transaction: **2**
 - Refusals by pilot's policy: **15** rows (**7** distinct rules): **11** by the policy limits (allowedMarkets, maxNotionalUsd, minLiquidationDistancePct), **4** by pilot's own checks (minQuantity, unknownPlan, planExpired, planAlreadyUsed); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)

@@ -418,6 +418,9 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
         }
       }
       found ??= evaluate(now, { market: raw.symbol, notionalUsd: exposure, liquidationDistancePct: dist, ordersToday: ordersToday(deps) + s.opens - 1 });
+      // The limit was priced with the slippage bound read before the queue; a tighter one now wins.
+      if (!found.length && now.maxSlippagePct < policy.maxSlippagePct)
+        found = [{ rule: "maxSlippagePct", detail: `the slippage limit was tightened while this order waited for the writer (${now.maxSlippagePct}% now, the order's limit was priced at ${policy.maxSlippagePct}%)`, next: "call plan_order again" }];
       if (found.length) throw Object.assign(new Error(found[0].detail), { pilotRefusals: found });
     };
     return await sendIoc(deps, { action: "open", raw: { ...raw, price }, plan_id, check, extra: price === raw.price ? {} : { planLimitPrice: u.px(raw.price) } });

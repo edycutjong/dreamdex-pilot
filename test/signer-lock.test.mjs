@@ -46,6 +46,35 @@ describe("signer lock", () => {
     expect(acquireSignerLock({ account, chainId: 50383, dir, pid: 7, alive: () => true }).path).toBe(path);
     expect(readFileSync(path, "utf8")).toBe("7");
   });
+  it("two servers that saw the same dead holder: only one takes the lock (the takeover is serialized)", () => {
+    const dir = fresh();
+    const path = join(dir, `signer-50383-${account.toLowerCase()}.lock`);
+    writeFileSync(path, "999"); // left by a server that died
+    let bResult;
+    let calls = 0;
+    // A's second liveness check runs while A holds the takeover file: B tries right then.
+    const aliveA = (p) => {
+      if (p === 999 && ++calls === 2) {
+        try { bResult = acquireSignerLock({ account, chainId: 50383, dir, pid: 222, alive: (q) => q === 111 }); } catch (e) { bResult = e; }
+      }
+      return p === 111;
+    };
+    const a = acquireSignerLock({ account, chainId: 50383, dir, pid: 111, alive: aliveA });
+    expect(readFileSync(a.path, "utf8")).toBe("111");
+    expect(bResult).toBeInstanceOf(Error);
+    expect(bResult.message).toMatch(/could not take the signer lock/);
+    expect(bResult.pilotNotSent).toBe(true);
+    expect(existsSync(`${path}.takeover`)).toBe(false);
+  });
+  it("a takeover file left by a server that died mid-takeover is cleared once it is stale", () => {
+    const dir = fresh();
+    const path = join(dir, `signer-50383-${account.toLowerCase()}.lock`);
+    writeFileSync(path, "999");
+    writeFileSync(`${path}.takeover`, "");
+    expect(() => acquireSignerLock({ account, chainId: 50383, dir, pid: 7, alive: () => false })).toThrow(/could not take/); // fresh: someone may be mid-takeover
+    expect(acquireSignerLock({ account, chainId: 50383, dir, pid: 7, alive: () => false, now: () => Date.now() + 60_000 }).path).toBe(path);
+    expect(readFileSync(path, "utf8")).toBe("7");
+  });
   it("across real processes: a live child holding the lock refuses this process; after it exits, this process takes it", async () => {
     const dir = fresh();
     const mod = fileURLToPath(new URL("../src/signer-lock.mjs", import.meta.url));

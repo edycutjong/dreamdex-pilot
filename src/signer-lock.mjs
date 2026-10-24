@@ -5,7 +5,7 @@
 // lifetime; any other server keeps its read tools but refuses to send until that process exits.
 // A lock left behind by a process that is gone is taken over. Its place is ~/.pilot/locks whatever
 // PILOT_HOME or PILOT_JOURNAL say, so a different journal is not a second signing lane.
-import { linkSync, writeFileSync, readFileSync, unlinkSync, mkdirSync } from "node:fs";
+import { linkSync, writeFileSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -28,7 +28,7 @@ const holderOf = (path) => {
   }
 };
 
-export const acquireSignerLock = ({ account, chainId, dir = lockDir(), pid = process.pid, alive = isAlive }) => {
+export const acquireSignerLock = ({ account, chainId, dir = lockDir(), pid = process.pid, alive = isAlive, now = Date.now, takeoverStaleMs = 10_000 }) => {
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `signer-${chainId}-${account.toLowerCase()}.lock`);
   const held = {
@@ -41,30 +41,64 @@ export const acquireSignerLock = ({ account, chainId, dir = lockDir(), pid = pro
       }
     },
   };
-  for (let attempt = 0; attempt < 3; attempt++) {
-    // Written aside, then linked into place: the lock never exists without its pid in it.
+  // Written aside, then linked into place: the lock never exists without its pid in it.
+  const place = () => {
     const tmp = `${path}.${pid}.tmp`;
     writeFileSync(tmp, String(pid));
     try {
       linkSync(tmp, path);
-      return held;
+      return true;
     } catch (e) {
       if (e.code !== "EEXIST") throw e;
+      return false;
     } finally {
       unlinkSync(tmp);
     }
-    const holder = holderOf(path);
-    if (holder === pid) return held;
-    if (holder == null) continue;
-    if (Number.isInteger(holder) && holder > 0 && alive(holder))
-      throw Object.assign(
-        new Error(`another pilot server (pid ${holder}) is already signing for ${account} on chain ${chainId}; end that MCP session (or stop that process) to send from this one. Read tools still work here`),
-        { pilotUser: true, pilotNotSent: true, code: "signerBusy" },
-      );
+  };
+  const busy = (holder) =>
+    Object.assign(
+      new Error(`another pilot server (pid ${holder}) is already signing for ${account} on chain ${chainId}; end that MCP session (or stop that process) to send from this one. Read tools still work here`),
+      { pilotUser: true, pilotNotSent: true, code: "signerBusy" },
+    );
+  // Taking over a dead holder's lock is serialized by a short-lived takeover file (exclusive create),
+  // so two servers that both saw the same dead pid cannot both delete the lock and both take it: the
+  // one holding the takeover re-reads the holder, replaces the lock, and only then lets go. A takeover
+  // file left by a process that died mid-takeover is cleared after takeoverStaleMs.
+  const takeover = `${path}.takeover`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (place()) return held;
+    const seen = holderOf(path);
+    if (seen === pid) return held;
+    if (Number.isInteger(seen) && seen > 0 && alive(seen)) throw busy(seen);
+    let fd;
     try {
-      unlinkSync(path); // its process is gone (or the file holds no pid): take it over
-    } catch {
-      // someone else removed it first
+      fd = openSync(takeover, "wx");
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+      try {
+        if (now() - statSync(takeover).mtimeMs > takeoverStaleMs) unlinkSync(takeover);
+      } catch {
+        // gone already
+      }
+      continue; // another server is taking over right now
+    }
+    try {
+      closeSync(fd);
+      const holder = holderOf(path); // read again, now that no one else can be replacing it
+      if (holder === pid) return held;
+      if (Number.isInteger(holder) && holder > 0 && alive(holder)) throw busy(holder);
+      try {
+        unlinkSync(path); // its process is gone (or the file holds no pid)
+      } catch {
+        // already gone
+      }
+      if (place()) return held;
+    } finally {
+      try {
+        unlinkSync(takeover);
+      } catch {
+        // cleared already
+      }
     }
   }
   throw Object.assign(new Error(`could not take the signer lock ${path}; try again`), { pilotNotSent: true });
