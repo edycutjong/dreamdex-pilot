@@ -139,7 +139,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 - A crash between a landed send and its journal row is not counted toward the daily cap.
 - Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, deny the client's shell and file tools (both clients have permission settings) and keep the burner small.
 - Plans live in the server's memory only, so restarting the server drops them.
-- At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
+- At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49.50, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
 - MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
 - `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
 
