@@ -19,7 +19,7 @@ if (cmd === "journal") {
     process.exit(2);
   }
   const files = (opt("--journal") ?? createJournal().path).split(",");
-  const entries = files.flatMap((f) => createJournal(f).read());
+  const entries = files.flatMap((f) => createJournal(f).read().map((e) => ({ ...e, _src: f.split("/").pop() })));
   const receipts = opt("--receipts") ? parseReceipts(readFileSync(opt("--receipts"), "utf8")) : new Map();
   const md = renderDemo(entries, { receipts, sources: files.map((f) => f.split("/").pop()) });
   if (opt("--out")) writeFileSync(opt("--out"), md);

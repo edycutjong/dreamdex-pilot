@@ -4,7 +4,8 @@
 // behind a real MCP client, plan_order and place_order are the real tools, and ONLY the sender
 // is wrapped: it lowers the limit price of the one order by 5% (what a book that ticked away
 // between check and mining looks like). The transaction, the revert, the decoded reason and the
-// journal row are all real. A "note" row in the journal says the race was injected.
+// journal row are all real. A "note" row says the race was injected, and the refusal row itself
+// carries injected: true and sentLimitPrice.
 //   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/exchange-refusal-injected.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -13,12 +14,21 @@ import { readMarkets, createChain, accountAddress } from "../src/client.mjs";
 import { createJournal } from "../src/journal.mjs";
 import { loadPolicy } from "../src/policy.mjs";
 
-const journal = createJournal();
+const real = createJournal();
+// Every row written from the injected send onward (the refusal itself) is tagged, so the journal
+// row says it on its own and not only a neighbouring note.
+let injected = false;
+let sentLimitPrice = null;
+const journal = { ...real, append: (e) => real.append(injected ? { ...e, injected: true, sentLimitPrice } : e) };
 const chain = createChain();
 const reader = readMarkets();
+const fmt = (x) => (Number(x / 10_000_000_000_000_000n) / 100).toString();
 const send = (order) => {
-  journal.append({ kind: "note", text: `race injected by scripts/exchange-refusal-injected.mjs: the limit price ${order.price} was lowered 5% in the sender, standing in for the book moving between place_order's freshness check and mining. Everything else is the real tool path.` });
-  return chain.send({ ...order, price: ((order.price * 95n) / 100n / 10_000_000_000_000_000n) * 10_000_000_000_000_000n });
+  const price = ((order.price * 95n) / 100n / 10_000_000_000_000_000n) * 10_000_000_000_000_000n;
+  injected = true;
+  sentLimitPrice = fmt(price);
+  real.append({ kind: "note", text: `race injected by scripts/exchange-refusal-injected.mjs: the planned limit ${fmt(order.price)} was lowered 5% to ${fmt(price)} in the sender before sending, standing in for the book moving between place_order's freshness check and mining. No market move happened. Everything else is the real tool path.`, plannedLimitPrice: fmt(order.price), sentLimitPrice: fmt(price) });
+  return chain.send({ ...order, price });
 };
 const server = createServer({ client: () => reader.client, account: accountAddress, send, chain, journal, policy: () => loadPolicy() });
 const [a, b] = InMemoryTransport.createLinkedPair();

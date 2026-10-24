@@ -37,22 +37,25 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   out.push(`- Positions closed: **${closes.length}**`);
   out.push(`- Brackets armed (take-profit + stop-loss): **${brackets.length}**`);
   out.push(`- Cancels that sent a transaction: **${cancels.length}**`);
-  out.push(`- Refusals by pilot's policy: **${byPilot.length}**; refusals by the exchange: **${byExchange.length}**`, "");
+  const injected = byExchange.filter((e) => e.injected);
+  out.push(`- Refusals by pilot's policy: **${byPilot.length}**; refusals by the exchange: **${byExchange.length}**${injected.length ? ` (${injected.length} of them with the race injected: the limit price was lowered in the sender, no market move happened; see Notes)` : ""}`, "");
   const tx = (list, head, line) => {
     if (!list.length) return;
-    out.push(`## ${head}`, "", "| time (UTC) | what | tx | on chain (RPC re-fetch) |", "|---|---|---|---|");
-    for (const e of list) out.push(`| ${cell(e.at)} | ${cell(line(e))} | \`${e.tx ?? "-"}\` | ${cell(rc(e.tx))} |`);
+    out.push(`## ${head}`, "", "| time (UTC) | what | tx | on chain (RPC re-fetch) | journal |", "|---|---|---|---|---|");
+    for (const e of list) out.push(`| ${cell(e.at)} | ${cell(line(e))} | \`${e.tx ?? "-"}\` | ${cell(rc(e.tx))} | ${cell(e._src)} |`);
     out.push("");
   };
   tx(orders, "Orders", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}`);
   tx(closes, "Closes", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), position after ${e.positionAfter}`);
-  tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})`);
+  tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})${e.operatorGrantTxs?.length ? `; first bracket, the SDK also sent the one-time operator grant ${e.operatorGrantTxs.join(", ")}` : ""}`);
   if (cancels.length) {
-    out.push("## Cancels", "", "| time (UTC) | what | tx | on chain (RPC re-fetch) |", "|---|---|---|---|");
-    for (const e of cancels) for (const t of e.txs) out.push(`| ${cell(e.at)} | ${cell(t.what)} | \`${t.tx}\` | ${cell(rc(t.tx))} |`);
+    out.push("## Cancels", "", "| time (UTC) | what | tx | on chain (RPC re-fetch) | journal |", "|---|---|---|---|---|");
+    for (const e of cancels) for (const t of e.txs) out.push(`| ${cell(e.at)} | ${cell(t.what)} | \`${t.tx}\` | ${cell(rc(t.tx))} | ${cell(e._src)} |`);
     out.push("");
   }
   const refusalLine = (e) => {
+    if (e.injected && e.refused_by === "exchange")
+      return `| ${cell(e.at)} | ${cell(e.stage)} | ${cell([e.side, e.size, e.market].join(" "))} **(race injected, sent at ${cell(e.sentLimitPrice ?? "a lowered limit")})** | ${cell(e.code)} | ${cell(e.reason)} | plan again from a fresh touch |`;
     const first = e.refusals?.[0];
     const rule = e.rules?.join(", ") ?? e.code ?? "-";
     const why = e.reason ?? first?.detail ?? "-";
@@ -65,7 +68,7 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     out.push("");
   }
   if (byExchange.length) {
-    out.push("## Refusals by the exchange (`refused_by: \"exchange\"`)", "", "The order passed pilot's policy, was sent, and the exchange reverted it. The reason is the decoded custom error. If a note at the end says the race was injected, the exchange saw a real order and refused it for real; only the price move that made it unfillable was staged.", "", "| time (UTC) | stage | order | error | reason | next safe action | tx |", "|---|---|---|---|---|---|---|");
+    out.push("## Refusals by the exchange (`refused_by: \"exchange\"`)", "", "The order passed pilot's policy and was sent; the exchange reverted it and the reason is the decoded custom error. Rows marked **race injected** were provoked on purpose: the limit price was lowered in the sender before sending (see Notes), so the order was unfillable by construction and no market move happened. The revert, the decoded reason and the tx are real.", "", "| time (UTC) | stage | order | error | reason | next safe action | tx |", "|---|---|---|---|---|---|---|");
     for (const e of byExchange) out.push(`${refusalLine(e)} \`${e.tx ?? "-"}\` (${cell(rc(e.tx))}) |`);
     out.push("");
   }

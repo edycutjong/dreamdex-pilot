@@ -2,7 +2,7 @@
 // (chain access through `deps`, every outcome journaled and returned as a value):
 //   deps.chain  createChain()  placeStops / cancelStops / cancelAll      deps.native()  STT balance (bigint)
 import { formatUnits } from "viem";
-import { findMarket, units } from "./trader.mjs";
+import { findMarket, units, inflight, busy } from "./trader.mjs";
 import { explainExchangeError, isExchangeRefusal, describeError } from "./exchange-errors.mjs";
 
 const abs = (x) => (x < 0n ? -x : x);
@@ -12,6 +12,27 @@ const fmt = (x, d = 18) => formatUnits(BigInt(x), d);
 const num = (x, d = 18) => Number(fmt(x, d));
 
 const pendingStops = async (client, account) => client.listPerpStopOrders({ account, status: ["PENDING"], limit: 100 });
+
+
+// The stops that protect this account on one registry: the indexer's pending list UNION the stop
+// ids this journal recorded when pilot armed them, each confirmed live and owned on chain. The
+// indexer can lag a just-armed bracket by seconds; the chain read cannot.
+const liveStops = async (deps, mk, indexed) => {
+  const client = deps.client();
+  const account = deps.account().toLowerCase();
+  const reg = mk.stopRegistry.toLowerCase();
+  const ids = new Set(indexed.filter((s) => String(s.registry).toLowerCase() === reg).map((s) => String(s.orderIdRaw)));
+  for (const e of deps.journal.read()) {
+    if (e.kind !== "bracket" || e.market !== mk.baseSymbol) continue;
+    for (const id of [e.takeProfitStopId, e.stopLossStopId]) if (id) ids.add(String(id));
+  }
+  const live = [];
+  for (const id of ids) {
+    const o = await client.getPerpStopOrder({ registry: mk.stopRegistry, orderId: id });
+    if (o && String(o.owner).toLowerCase() === account) live.push({ id, isBid: o.isBid, triggerPrice: o.triggerPrice, triggerOperator: o.triggerOperator });
+  }
+  return live;
+};
 
 // ---- account -----------------------------------------------------------------------------------
 export const accountInfo = async (deps) => {
@@ -65,13 +86,17 @@ export const accountInfo = async (deps) => {
 // Same rules as sendIoc: a revert is the exchange's refusal (decoded), anything else without a
 // hash may still have gone out ("unknown") unless the sender proved otherwise.
 const failTx = (deps, e, base) => {
-  const tx = e?.txHash ?? null;
+  // A stop placement can send two txs (operator grant, then the stop); after a failure which hash
+  // belongs to the failing one is unknowable, so all of them are reported, none as "the" tx.
+  const txs = Array.isArray(e?.txHashes) ? e.txHashes : null;
+  if (txs) base = { ...base, ...(txs.length ? { txsSeen: txs } : {}) };
+  const tx = txs ? null : e?.txHash ?? null;
   if (isExchangeRefusal(e)) {
     const x = explainExchangeError(e);
-    deps.journal.append({ kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base });
-    return { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, ...base };
+    deps.journal.append({ kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx || txs?.length ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base });
+    return { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, sent: tx || txs?.length ? true : "unknown", ...base };
   }
-  const sent = tx ? true : e?.pilotNotSent ? false : "unknown";
+  const sent = tx || txs?.length ? true : e?.pilotNotSent ? false : "unknown";
   const error = describeError(e);
   deps.journal.append({ kind: "error", sent, tx, error, ...base });
   return { ok: false, error, sent, tx, next: sent === false ? "nothing was sent; fix the error and try again" : "send status unknown: call account to see what is on chain before trying again", ...base };
@@ -91,13 +116,28 @@ const refusePilot = (deps, base, rule, detail, next) => {
 // (refunded on cancel).
 export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) => {
   const client = deps.client();
-  const account = deps.account();
   const mk = await findMarket(client, market);
   const u = units(mk);
   const base = { action: "bracket", market: mk.baseSymbol, takeProfitPct: take_profit_pct, stopLossPct: stop_loss_pct };
+  if (!mk.stopRegistry) return refusePilot(deps, base, "noStopRegistry", `${mk.baseSymbol} has no stop registry, so it cannot hold a bracket`, "pick another market");
   if (!(take_profit_pct >= 0.1 && take_profit_pct <= 50 && stop_loss_pct >= 0.1 && stop_loss_pct <= 50))
     throw user("take_profit_pct and stop_loss_pct must each be between 0.1 and 50 (percent away from the current mark price).");
 
+  // One bracket (or order) per market at a time, shared with place_order/close_position: two parallel
+  // brackets cannot both pass the "no bracket yet" check below.
+  const lock = inflight(deps);
+  if (lock.markets.has(mk.baseSymbol)) return busy(deps, mk.baseSymbol, "bracket");
+  lock.markets.add(mk.baseSymbol);
+  try {
+    return await bracketLocked(deps, { mk, u, base, take_profit_pct, stop_loss_pct });
+  } finally {
+    lock.markets.delete(mk.baseSymbol);
+  }
+};
+
+const bracketLocked = async (deps, { mk, u, base, take_profit_pct, stop_loss_pct }) => {
+  const client = deps.client();
+  const account = deps.account();
   let pos, an, pending, perLeg, balance;
   try {
     const ref = { pool: mk.poolAddress, marginBank: mk.marginBank, account };
@@ -115,8 +155,15 @@ export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) 
   }
   if (pos.size === 0n) return refusePilot(deps, base, "noPosition", `there is no open ${mk.baseSymbol} position to protect`, "open one with plan_order and place_order first");
   if (!an?.priceable) return refusePilot(deps, base, "markUnknown", `the exchange could not price the ${mk.baseSymbol} position right now`, "try again shortly");
-  const mine = pending.filter((s) => String(s.registry).toLowerCase() === mk.stopRegistry.toLowerCase());
-  if (mine.length) return refusePilot(deps, base, "bracketExists", `${mine.length} pending stop(s) already protect ${mk.baseSymbol}`, "call cancel_all for this market first, then bracket again");
+  let mine;
+  try {
+    mine = await liveStops(deps, mk, pending);
+  } catch (e) {
+    const error = describeError(e);
+    deps.journal.append({ kind: "error", stage: "bracket", sent: false, error, ...base });
+    return { ok: false, error, sent: false, next: "nothing was sent; try again", ...base };
+  }
+  if (mine.length) return refusePilot(deps, base, "bracketExists", `${mine.length} pending stop(s) already protect ${mk.baseSymbol} (confirmed on chain)`, "call cancel_all for this market first, then bracket again");
   const need = perLeg * 2n;
   if (balance != null && balance < need + 10n ** 17n)
     return refusePilot(deps, base, "insufficientNative", `a bracket holds ${fmt(need)} STT (2 x ${fmt(perLeg)}, refunded on cancel) plus gas, and the account has ${fmt(balance)} STT`, "fund the account with STT from the faucet");
@@ -129,6 +176,9 @@ export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) 
   const down = (pct) => nearestTo((mark * (10_000n - bps(pct))) / 10_000n, tick);
   const tpTrigger = long ? up(take_profit_pct) : down(take_profit_pct);
   const slTrigger = long ? down(stop_loss_pct) : up(stop_loss_pct);
+  // Rounding to the tick must not move a trigger onto or across the mark.
+  if (long ? !(tpTrigger > mark && slTrigger < mark) : !(tpTrigger < mark && slTrigger > mark))
+    return refusePilot(deps, base, "triggersTooTight", `at tick ${u.px(tick)} the triggers round onto or across the mark ${u.px(mark)} (take-profit ${u.px(tpTrigger)}, stop-loss ${u.px(slTrigger)})`, "use wider take_profit_pct and stop_loss_pct");
   const exitIsBid = !long; // closing a short buys
   // GTE (0) fires when mark >= trigger, LTE (1) when mark <= trigger. Long: TP above, SL below.
   const tp = { isBid: exitIsBid, quantity: 0n, triggerPrice: tpTrigger, triggerOperator: long ? 0 : 1, stopOrderType: 1 };
@@ -149,7 +199,9 @@ export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) 
   } catch (e) {
     return failTx(deps, e, human);
   }
-  const out = { ok: true, ...human, tx: res.hash, block: Number(res.receipt?.blockNumber ?? 0), status: res.receipt?.status ?? null, takeProfitStopId: res.stopOrderId?.toString() ?? null, stopLossStopId: res.pairedStopOrderId?.toString() ?? null, gasUsed: res.receipt?.gasUsed?.toString?.() ?? null };
+  // First bracket on this registry: the SDK sent the one-time operator grant before the stop.
+  const grantTxs = (res.txsSent ?? []).filter((h) => h !== res.hash);
+  const out = { ok: true, ...human, ...(grantTxs.length ? { operatorGrantTxs: grantTxs, operatorGrantNote: "one-time: lets this stop registry place the triggered reduce-only order for the account" } : {}), tx: res.hash, block: Number(res.receipt?.blockNumber ?? 0), status: res.receipt?.status ?? null, takeProfitStopId: res.stopOrderId?.toString() ?? null, stopLossStopId: res.pairedStopOrderId?.toString() ?? null, gasUsed: res.receipt?.gasUsed?.toString?.() ?? null };
   try {
     deps.journal.append({ kind: "bracket", sent: true, ...out });
   } catch (e) {
@@ -161,15 +213,30 @@ export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) 
 // ---- cancel_all --------------------------------------------------------------------------------
 // Tears down this account's pending brackets (stops) and any resting orders. pilot's own orders
 // are IOC and never rest, so resting orders only exist if the account was used elsewhere.
+// Stops come from the indexer plus the ids pilot's own journal armed, each confirmed live on chain
+// (the indexer lags a fresh bracket); resting orders are looked for on every target market.
+// "nothingToCancel" is only said when every read succeeded.
 export const cancelAll = async (deps, { market } = {}) => {
   const client = deps.client();
   const account = deps.account();
   const markets = await client.listPerpMarkets();
   const target = market ? [await findMarket(client, market)] : markets;
   const base = { action: "cancel_all", market: market ? target[0].baseSymbol : "all" };
-  let stops;
+  const lock = inflight(deps);
+  const busyOn = target.find((mk) => lock.markets.has(mk.baseSymbol));
+  if (busyOn) return busy(deps, busyOn.baseSymbol, "cancel_all");
+  for (const mk of target) lock.markets.add(mk.baseSymbol);
   try {
-    stops = await pendingStops(client, account);
+    return await cancelLocked(deps, { client, account, target, base });
+  } finally {
+    for (const mk of target) lock.markets.delete(mk.baseSymbol);
+  }
+};
+
+const cancelLocked = async (deps, { client, account, target, base }) => {
+  let indexed;
+  try {
+    indexed = await pendingStops(client, account);
   } catch (e) {
     const error = describeError(e);
     deps.journal.append({ kind: "error", stage: "cancel", sent: false, error, ...base });
@@ -177,38 +244,48 @@ export const cancelAll = async (deps, { market } = {}) => {
   }
   const result = { ok: true, ...base, cancelledStops: [], cancelledOrders: [], txs: [] };
   const fail = [];
+  const success = (r) => (r.receipt?.status ?? "success") === "success";
   for (const mk of target) {
-    const ids = stops.filter((s) => String(s.registry).toLowerCase() === mk.stopRegistry?.toLowerCase()).map((s) => s.orderIdRaw);
-    if (ids.length) {
-      try {
-        const r = await deps.chain.cancelStops({ registry: mk.stopRegistry, orderIds: ids, gas: 20_000_000n });
-        result.cancelledStops.push(...ids.map((id) => ({ market: mk.baseSymbol, id })));
-        result.txs.push({ what: `${ids.length} stop(s) on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
-      } catch (e) {
-        fail.push(failTx(deps, e, { ...base, market: mk.baseSymbol, stage: "cancel stops" }));
-      }
+    if (!mk.stopRegistry) continue;
+    let live;
+    try {
+      live = await liveStops(deps, mk, indexed);
+    } catch (e) {
+      fail.push({ ok: false, market: mk.baseSymbol, stage: "read stops", error: describeError(e), sent: false });
+      continue;
+    }
+    if (!live.length) continue;
+    const ids = live.map((s) => s.id);
+    try {
+      const r = await deps.chain.cancelStops({ registry: mk.stopRegistry, orderIds: ids, gas: 20_000_000n });
+      if (!success(r)) throw Object.assign(new Error(`the cancel tx ${r.hash} did not succeed (${r.receipt?.status})`), { txHash: r.hash });
+      result.cancelledStops.push(...ids.map((id) => ({ market: mk.baseSymbol, id })));
+      result.txs.push({ what: `${ids.length} stop(s) on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
+    } catch (e) {
+      fail.push(failTx(deps, e, { ...base, market: mk.baseSymbol, stage: "cancel stops" }));
     }
   }
-  // Resting orders: only where this account has a position or a stop, or when one market was named
-  // (the chain read costs one eth_call per market; nothing resting sends nothing).
-  const active = new Set((await client.getMarginAccount(markets[0].marginBank, account).catch(() => ({ activePerpPools: [] }))).activePerpPools.map((p) => String(p).toLowerCase()));
   for (const mk of target) {
-    if (!market && !active.has(mk.poolAddress.toLowerCase())) continue;
     try {
       const r = await deps.chain.cancelAll(mk.poolAddress);
-      if (r.sent) {
-        result.cancelledOrders.push(...r.orderIds.map((id) => ({ market: mk.baseSymbol, id: id.toString() })));
-        result.txs.push({ what: `resting orders on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
-      }
+      if (!r.sent) continue;
+      if (!success(r)) throw Object.assign(new Error(`the cancel tx ${r.hash} did not succeed (${r.receipt?.status})`), { txHash: r.hash });
+      result.cancelledOrders.push(...r.orderIds.map((id) => ({ market: mk.baseSymbol, id: id.toString() })));
+      result.txs.push({ what: `resting orders on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
     } catch (e) {
       fail.push(failTx(deps, e, { ...base, market: mk.baseSymbol, stage: "cancel orders" }));
     }
   }
   result.nothingToCancel = result.cancelledStops.length === 0 && result.cancelledOrders.length === 0 && fail.length === 0;
-  if (fail.length) result.failures = fail;
-  if (fail.length) result.ok = false;
+  if (result.nothingToCancel) result.checked = "indexer pending stops + the brackets this journal armed (confirmed on chain) + resting orders on each market";
+  if (fail.length) {
+    result.failures = fail;
+    result.ok = false;
+  }
+  // `sent` stays honest when a failure may have broadcast: true / "unknown" beat false.
+  const maybeSent = fail.some((f) => f.sent === true || f.sent === "unknown" || f.tx || f.txsSeen);
   try {
-    deps.journal.append({ kind: "cancel", sent: result.txs.length > 0, ...result });
+    deps.journal.append({ kind: "cancel", sent: result.txs.length > 0 ? true : maybeSent ? "unknown" : false, ...result });
   } catch (e) {
     result.journalError = `the cancel landed but the journal write failed: ${describeError(e)}`;
   }

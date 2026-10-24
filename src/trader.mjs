@@ -194,8 +194,8 @@ const refuse = (deps, rule, detail, next, extra = {}) => refuseAll(deps, [{ rule
 // exists, and one order per market at a time, open or close (a close is not reduce-only on
 // chain, so two parallel closes sized from the same read would flip the position, and an open
 // racing a close would be sized against a position about to change).
-const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set() });
-const busy = (deps, symbol, action) => ({ ok: false, action, market: symbol, reason: `an order on ${symbol} is already in flight`, next: "wait for it to finish, then try again" });
+export const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set() });
+export const busy = (deps, symbol, action) => ({ ok: false, action, market: symbol, reason: `an order on ${symbol} is already in flight`, next: "wait for it to finish, then try again" });
 
 // A failure that is not the send itself (a read before it): nothing went out.
 const failedBeforeSend = (deps, e, extra) => {

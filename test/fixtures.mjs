@@ -27,7 +27,7 @@ export const makeDeps = (over = {}) => {
     margin: { priceable: true, lockAmount: E18, meetsInitialMargin: true, hasCollateralForLock: true, voucherBlocked: false, markPrice: px(102.51) },
     liq: { priceable: true, projectedLiquidationPrice: 0n, markPrice: px(102.51), projectedPositionLeverageBps: 2000n },
     sendError: null,
-    stops: [], stopCalls: [], cancelCalls: [], native: 5n * E18, stopError: null, resting: [], avgEntry: px(100),
+    stops: [], onChain: new Map(), indexLag: false, stopCalls: [], cancelCalls: [], native: 5n * E18, stopError: null, resting: [], avgEntry: px(100),
   };
   const previews = [];
   const client = {
@@ -38,9 +38,15 @@ export const makeDeps = (over = {}) => {
     previewPerpOrderMargin: async (a) => { if (a.quantity <= 0n) throw new Error("quantity must be > 0"); previews.push(a); return state.margin; },
     previewPerpLiquidationPrice: async (a) => { if (a.quantity <= 0n) throw new Error("quantity must be > 0"); return state.liq; },
     getPerpPosition: async () => ({ size: state.pos, avgEntryPrice: state.avgEntry }),
-    getPerpPositionAnalytics: async () => ({ priceable: true, markPrice: px(102.51), avgEntryPrice: state.avgEntry, size: state.pos, notional: 0n, unrealizedPnl: 3n * E18 / 2n }),
+    getPerpPositionAnalytics: async () => ({ priceable: true, markPrice: px(102.51), avgEntryPrice: state.avgEntry, size: state.pos, unrealizedPnl: 3n * E18 / 2n, notional: 31n * E18 / 2n }),
     getMarginAccount: async () => ({ unlockedCollateralBalance: 40n * E18, lockedCollateral: 2n * E18, equity: 42n * E18, withdrawable: 40n * E18, imReq: E18, mmReq: E18 / 2n, cmReq: E18 / 4n, marginStatus: "Healthy", asOfBlock: 31555000n, activePerpPools: state.pos === 0n ? [] : [SOL.poolAddress.toUpperCase()] }),
-    listPerpStopOrders: async () => state.stops,
+    listPerpStopOrders: async () => { if (state.listError) throw state.listError; return state.indexLag ? [] : state.stops; },
+    // Live on chain = a row in state.onChain, or any pending indexer row (owned by the account).
+    getPerpStopOrder: async ({ orderId }) => {
+      const id = String(orderId);
+      const row = state.onChain.get(id) ?? state.stops.find((s) => String(s.orderIdRaw) === id);
+      return row ? { owner: row.owner ?? "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b", isBid: row.isBid ?? false, triggerPrice: BigInt(row.triggerPrice ?? 1), triggerOperator: row.triggerOperator ?? 0 } : null;
+    },
     getPerpStopOrderSomiPayment: async () => 15n * 10n ** 16n,
   };
   const send = async (order) => {
@@ -53,12 +59,14 @@ export const makeDeps = (over = {}) => {
     placeStops: async (p) => {
       state.stopCalls.push(p);
       if (state.stopError) throw state.stopError;
-      return { hash: `0x${"b".repeat(64)}`, receipt: { blockNumber: 31556000n, status: "success", gasUsed: 2_000_000n }, stopOrderId: 11n, pairedStopOrderId: 12n };
+      state.onChain.set("11", { isBid: p.isBid }); state.onChain.set("12", { isBid: p.isBid });
+      return { hash: `0x${"b".repeat(64)}`, receipt: { blockNumber: 31556000n, status: "success", gasUsed: 2_000_000n }, stopOrderId: 11n, pairedStopOrderId: 12n, txsSent: state.grantTx ? [state.grantTx, `0x${"b".repeat(64)}`] : [`0x${"b".repeat(64)}`] };
     },
-    cancelStops: async (p) => { state.cancelCalls.push(["stops", p]); state.stops = []; return { hash: `0x${"c".repeat(64)}`, receipt: { blockNumber: 31556100n, status: "success" } }; },
+    cancelStops: async (p) => { state.cancelCalls.push(["stops", p]); if (state.cancelStopsError) throw state.cancelStopsError; state.stops = []; state.onChain.clear(); return { hash: `0x${"c".repeat(64)}`, receipt: { blockNumber: 31556100n, status: "success" } }; },
     cancelAll: async (pool) => {
       state.cancelCalls.push(["orders", pool]);
-      if (!state.resting.length) return { sent: false, orderIds: [], outcomes: [] };
+      if (state.cancelOrdersError) throw state.cancelOrdersError;
+      if (!state.resting.length || pool !== SOL.poolAddress) return { sent: false, orderIds: [], outcomes: [] };
       return { sent: true, orderIds: state.resting, hash: `0x${"d".repeat(64)}`, receipt: { blockNumber: 31556200n, status: "success" } };
     },
   };

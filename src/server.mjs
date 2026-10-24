@@ -139,7 +139,7 @@ export const createServer = (deps) => {
     {
       title: "Cancel brackets and resting orders (real testnet transaction)",
       description:
-        "Cancel this account's pending take-profit/stop-loss brackets (their STT is refunded) and any resting orders, in one market or in all of them. pilot's own orders are immediate-or-cancel and never rest, so this mostly tears down brackets. Never blocked by policy: cancelling reduces risk. Says so when there is nothing to cancel.",
+        "Cancel this account's pending take-profit/stop-loss brackets (their STT is refunded) and any resting orders, in one market or in all of them (brackets are confirmed on chain, not only from the indexer, which lags). pilot's own orders are immediate-or-cancel and never rest, so this mostly tears down brackets. Never blocked by policy: cancelling reduces risk. Says so when there is nothing to cancel.",
       inputSchema: { market: z.string().min(1).max(16).optional().describe("Base symbol to limit the cancel to; omit for every market") },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },

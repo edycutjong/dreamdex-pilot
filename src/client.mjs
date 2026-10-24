@@ -16,8 +16,19 @@ const key = () => {
 export const readMarkets = () =>
   new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES });
 
-export const writeMarkets = (opts = {}) =>
-  new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES, privateKey: key(), ...opts });
+// Reads may be pointed at any address with PILOT_ACCOUNT, but the key signs for its own account:
+// a different PILOT_ACCOUNT would make pilot read one account and trade another.
+export const assertAccountMatchesKey = (env = process.env) => {
+  const derived = privateKeyToAccount(env.PILOT_PRIVATE_KEY).address;
+  if (env.PILOT_ACCOUNT && env.PILOT_ACCOUNT.toLowerCase() !== derived.toLowerCase())
+    throw new Error(`PILOT_ACCOUNT ${env.PILOT_ACCOUNT} is not the address of PILOT_PRIVATE_KEY (${derived}): pilot would read one account and trade another. Unset PILOT_ACCOUNT for writes.`);
+};
+
+export const writeMarkets = (opts = {}) => {
+  key();
+  assertAccountMatchesKey();
+  return new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES, privateKey: key(), ...opts });
+};
 
 // The account address is derived from the key; the key itself never leaves this function.
 export const accountAddress = () => process.env.PILOT_ACCOUNT ?? privateKeyToAccount(key()).address;
@@ -33,33 +44,46 @@ export const json = (v) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? 
 export const createChain = (make = writeMarkets) => {
   let writer;
   let lastHash = null;
+  let seen = []; // every tx hash the SDK reported during the current call, in order
   const debug = (e) => {
-    if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) lastHash = e.data.hash;
+    if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) {
+      lastHash = e.data.hash;
+      seen.push(e.data.hash);
+    }
   };
   let queue = Promise.resolve();
-  const sendOne = async (fn) => {
+  // `multi`: the SDK call can send more than one tx (a stop placement first grants the registry its
+  // operator right), so after a failure it is not knowable WHICH hash belongs to the failing tx:
+  // the error carries all of them as `txHashes` and no single `txHash`.
+  const sendOne = async (fn, multi) => {
     try {
       writer ??= make({ debug });
     } catch (e) {
-      e.pilotNotSent = true; // e.g. no key configured: nothing can have been broadcast
+      if (e && typeof e === "object") e.pilotNotSent = true; // e.g. no key configured: nothing can have been broadcast
       throw e;
     }
     lastHash = null;
+    seen = [];
     try {
-      return await fn(writer.trader);
+      const res = await fn(writer.trader);
+      if (multi && res && typeof res === "object") res.txsSent = [...seen];
+      return res;
     } catch (e) {
-      e.txHash ??= lastHash;
+      if (e && typeof e === "object") {
+        if (multi) e.txHashes = [...seen];
+        else e.txHash ??= lastHash;
+      }
       throw e;
     }
   };
-  const run = (fn) => {
-    const r = queue.then(() => sendOne(fn));
+  const run = (fn, multi = false) => {
+    const r = queue.then(() => sendOne(fn, multi));
     queue = r.catch(() => {});
     return r;
   };
   return {
     send: (order) => run((t) => t.placePerpOrder(order)),
-    placeStops: (params) => run((t) => t.placePerpStopOrder(params)),
+    placeStops: (params) => run((t) => t.placePerpStopOrder(params), true),
     cancelStops: (params) => run((t) => t.cancelPerpStopOrders(params)),
     cancelAll: (pool) => run((t) => t.cancelAllOrders(pool)),
   };
