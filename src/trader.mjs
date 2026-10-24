@@ -201,7 +201,7 @@ const policySummary = (p) => ({ maxNotionalUsd: p.maxNotionalUsd, minLiquidation
 const refuseAll = (deps, refusals, extra = {}) => {
   deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "place", action: "open", rules: refusals.map((r) => r.rule), refusals, ...extra });
   const [first] = refusals;
-  return { ok: false, refused_by: "pilot-policy", rule: first.rule, reason: first.detail, next: first.next, refusals, ...extra };
+  return { ok: false, refused_by: "pilot-policy", rule: first.rule, reason: first.detail, next: first.next, refusals, sent: false, ...extra };
 };
 const refuse = (deps, rule, detail, next, extra = {}) => refuseAll(deps, [{ rule, detail, next }], extra);
 
@@ -217,7 +217,7 @@ export const ordersToday = (deps) => {
   const day = now.toISOString().slice(0, 10);
   return deps.journal.ordersToday(now) + inflight(deps).unjournaled.filter((d) => d === day).length;
 };
-export const busy = (deps, symbol, action) => ({ ok: false, action, market: symbol, reason: `an order on ${symbol} is already in flight`, next: "wait for it to finish, then try again" });
+export const busy = (deps, symbol, action) => ({ ok: false, action, market: symbol, sent: false, reason: `an order on ${symbol} is already in flight`, next: "wait for it to finish, then try again" });
 
 // A failure that is not the send itself (a read before it): nothing went out.
 const failedBeforeSend = (deps, e, extra) => {
@@ -244,7 +244,7 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {}, check }) => {
       const x = explainExchangeError(e);
       // A revert without a captured hash still most likely went out: count it ("unknown").
       const row = { kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base };
-      return journalAfterSend(deps, action, row, { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, ...base });
+      return journalAfterSend(deps, action, row, { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, sent: row.sent, ...base });
     }
     // Without a hash a tx may still have gone out (a timeout after broadcast): "unknown", which
     // the daily cap counts, unless the sender proved nothing was sent (e.g. no key configured).

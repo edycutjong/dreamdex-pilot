@@ -37,6 +37,12 @@ const call = async (name, args) => {
   return body;
 };
 try {
+  // From flat only, so the close and cancel_all below can only touch what this run opened and armed.
+  const acct = await call("account", {});
+  const mine = (xs) => (Array.isArray(xs) ? xs.filter((x) => x.market === market.toUpperCase()) : []);
+  if (!Array.isArray(acct?.positions) || !Array.isArray(acct?.brackets) || mine(acct.positions).length || mine(acct.brackets).length) {
+    throw new Error(`stopping: this account already holds a ${market} position or bracket (or account could not list them); this script only round-trips from flat`);
+  }
   const plan = await call("plan_order", { market, side, size });
   if (plan.verdict !== "ok") process.exitCode = 1;
   else {

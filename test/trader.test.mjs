@@ -280,7 +280,7 @@ describe("place_order", () => {
     const { plan_id } = await plan(deps);
     state.sendError = Object.assign(new ContractRevertError({ errorName: "ImmediateOrCancelNoFill" }), { txHash: "0xdead" });
     const r = await placeOrder(deps, { plan_id });
-    expect(r).toMatchObject({ ok: false, refused_by: "exchange", code: "ImmediateOrCancelNoFill", tx: "0xdead" });
+    expect(r).toMatchObject({ ok: false, refused_by: "exchange", code: "ImmediateOrCancelNoFill", tx: "0xdead", sent: true }); // the answer says it went out, as the journal does
     expect(r.reason).toMatch(/found nothing to fill/);
     expect(journal.read().at(-1)).toMatchObject({ kind: "refusal", refused_by: "exchange", sent: true, tx: "0xdead", action: "open" });
     expect(journal.ordersToday(new Date(state.clock))).toBe(1); // a reverted send still counts
@@ -303,9 +303,22 @@ describe("place_order", () => {
     const { deps, state, journal } = makeDeps();
     const { plan_id } = await plan(deps);
     state.sendError = new ContractRevertError({ errorName: "ImmediateOrCancelNoFill" });
-    expect(await placeOrder(deps, { plan_id })).toMatchObject({ refused_by: "exchange", tx: null });
+    expect(await placeOrder(deps, { plan_id })).toMatchObject({ refused_by: "exchange", tx: null, sent: "unknown" });
     expect(journal.read().at(-1)).toMatchObject({ sent: "unknown" });
     expect(journal.ordersToday(new Date(state.clock))).toBe(1);
+  });
+  it("every refusal and busy answer says sent: false, so a caller never mistakes it for a possible send", async () => {
+    const { deps, state } = makeDeps();
+    const a = await plan(deps);
+    state.ask = px(110); // the book moved past the plan's limit
+    expect(await placeOrder(deps, { plan_id: a.plan_id })).toMatchObject({ ok: false, rule: "stalePlan", sent: false });
+    expect(await placeOrder(deps, { plan_id: "plan_000000000000" })).toMatchObject({ rule: "unknownPlan", sent: false });
+    state.ask = px(102.52);
+    const b = await plan(deps);
+    deps.inflight.markets.add("SOL"); // another order on SOL in flight
+    expect(await placeOrder(deps, { plan_id: b.plan_id })).toMatchObject({ ok: false, sent: false, reason: "an order on SOL is already in flight" });
+    expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: false, sent: false });
+    deps.inflight.markets.delete("SOL");
   });
   it("refuses as stale when the position changed since the plan (its previews no longer apply)", async () => {
     const { deps, state } = makeDeps();
