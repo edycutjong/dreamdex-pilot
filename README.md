@@ -131,7 +131,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 
 ## Honest limits
 
-- Testnet only. Nothing here has run on mainnet.
+- Testnet only. Nothing here has run on mainnet. Moving there means changing the chain, contract addresses and indexer in `src/client.mjs`, the network name in `src/server.mjs` and the explorer in `src/demo.mjs`, and re-checking that every market shares one margin bank, which `account` assumes (true for all 21 Hideki markets, `src/tools.mjs`).
 - No Somnia Reactivity or Somnia Agents yet: pilot reads and writes through the markets SDK only.
 - If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.

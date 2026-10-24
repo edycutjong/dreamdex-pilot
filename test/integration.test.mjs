@@ -15,7 +15,9 @@ const ACCOUNT = process.env.PILOT_ACCOUNT ?? "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c5
 
 describe.skipIf(!live)("live testnet over stdio", () => {
   const connect = async () => {
-    const env = { ...process.env, PILOT_ACCOUNT: ACCOUNT, PILOT_JOURNAL: join(mkdtempSync(join(tmpdir(), "pilot-it-")), "journal.jsonl") };
+    // A temp journal and a policy path that does not exist (= the defaults): never the developer's ~/.pilot.
+    const tmp = mkdtempSync(join(tmpdir(), "pilot-it-"));
+    const env = { ...process.env, PILOT_ACCOUNT: ACCOUNT, PILOT_JOURNAL: join(tmp, "journal.jsonl"), PILOT_POLICY: join(tmp, "no-policy.json") };
     delete env.PILOT_PRIVATE_KEY;
     const c = new Client({ name: "integration", version: "0" });
     await c.connect(new StdioClientTransport({ command: "node", args: [fileURLToPath(new URL("../bin/pilot.mjs", import.meta.url))], env, stderr: "ignore" }));
