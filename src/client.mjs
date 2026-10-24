@@ -36,7 +36,12 @@ export const createSender = (make = writeMarkets) => {
     if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) lastHash = e.data.hash;
   };
   return async (order) => {
-    writer ??= make({ debug });
+    try {
+      writer ??= make({ debug });
+    } catch (e) {
+      e.pilotNotSent = true; // e.g. no key configured: nothing can have been broadcast
+      throw e;
+    }
     lastHash = null;
     try {
       return await writer.trader.placePerpOrder(order);

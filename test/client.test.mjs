@@ -36,4 +36,9 @@ describe("createSender", () => {
     await send({});
     expect((await send({}).catch((x) => x)).txHash).toBeNull();
   });
+  it("marks a failure before any send (no key) as not sent", async () => {
+    const send = createSender(() => { throw new Error("PILOT_PRIVATE_KEY is not set"); });
+    const e = await send({}).catch((x) => x);
+    expect(e.pilotNotSent).toBe(true);
+  });
 });

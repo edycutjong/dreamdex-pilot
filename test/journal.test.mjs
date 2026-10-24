@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createJournal } from "../src/journal.mjs";
@@ -30,5 +30,17 @@ describe("journal", () => {
     j.append({ kind: "refusal", refused_by: "pilot-policy", action: "open" }); // never sent
     j.append({ kind: "close", sent: true, action: "close" }); // closes never count
     expect(j.ordersToday(new Date("2026-10-24T12:00:00Z"))).toBe(2);
+  });
+  it("fails closed on a corrupt line, naming it", () => {
+    const j = createJournal(join(mkdtempSync(join(tmpdir(), "pilot-j-")), "journal.jsonl"));
+    j.append({ kind: "plan" });
+    appendFileSync(j.path, "{not json\n");
+    expect(() => j.ordersToday()).toThrow(/line 2 is not valid JSON/);
+  });
+  it("counts a send with unknown status toward the cap", () => {
+    const j = createJournal(join(mkdtempSync(join(tmpdir(), "pilot-j-")), "journal.jsonl"));
+    j.append({ kind: "error", sent: "unknown", action: "open" });
+    j.append({ kind: "error", sent: false, action: "open" });
+    expect(j.ordersToday()).toBe(1);
   });
 });
