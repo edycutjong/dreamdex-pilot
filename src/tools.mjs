@@ -2,7 +2,7 @@
 // (chain access through `deps`, every outcome journaled and returned as a value):
 //   deps.chain  createChain()  placeStops / cancelStops / cancelAll      deps.native()  STT balance (bigint)
 import { formatUnits } from "viem";
-import { findMarket, units, inflight, busy } from "./trader.mjs";
+import { findMarket, units, inflight, busy, ordersToday } from "./trader.mjs";
 import { explainExchangeError, isExchangeRefusal, describeError } from "./exchange-errors.mjs";
 
 const abs = (x) => (x < 0n ? -x : x);
@@ -40,6 +40,7 @@ export const accountInfo = async (deps) => {
   const client = deps.client();
   const account = deps.account();
   const markets = await client.listPerpMarkets();
+  if (!markets.length) throw new Error("the exchange returned no perp markets (indexer or RPC not ready); try again shortly");
   const bank = markets[0].marginBank;
   const [ma, stops, stt] = await Promise.all([
     client.getMarginAccount(bank, account),
@@ -47,24 +48,25 @@ export const accountInfo = async (deps) => {
     deps.native ? deps.native().catch(() => null) : null,
   ]);
   const byPool = new Map(markets.map((m) => [m.poolAddress.toLowerCase(), m]));
-  const positions = [];
-  for (const pool of ma.activePerpPools) {
+  // One read pair per active pool, all pools at once; order follows activePerpPools.
+  const rows = await Promise.all(ma.activePerpPools.map(async (pool) => {
     const mk = byPool.get(String(pool).toLowerCase());
-    if (!mk) continue;
+    if (!mk) return null;
     const ref = { pool: mk.poolAddress, marginBank: mk.marginBank, account };
     const [pos, an] = await Promise.all([client.getPerpPosition(ref), client.getPerpPositionAnalytics(ref).catch(() => null)]);
-    if (pos.size === 0n) continue;
+    if (pos.size === 0n) return null;
     const u = units(mk);
-    positions.push({
+    return {
       market: mk.baseSymbol,
       side: pos.size > 0n ? "long" : "short",
       size: u.qty(abs(pos.size)),
       avgEntryPrice: u.px(pos.avgEntryPrice),
       markPrice: an?.priceable ? u.px(an.markPrice) : null,
-      notionalUsd: an?.priceable ? num(an.notional) : null,
-      unrealizedPnlUsd: an?.priceable ? num(an.unrealizedPnl) : null,
-    });
-  }
+      notionalUsd: an?.priceable ? u.usd(an.notional) : null,
+      unrealizedPnlUsd: an?.priceable ? u.usd(an.unrealizedPnl) : null,
+    };
+  }));
+  const positions = rows.filter(Boolean);
   // Pending brackets: the indexer's list plus the ids pilot armed (confirmed live on chain), since
   // the indexer lags a fresh bracket by seconds. Read failures are said, never shown as "none".
   let brackets;
@@ -90,7 +92,7 @@ export const accountInfo = async (deps) => {
     marginRequirementsUsd: { initial: num(ma.imReq), maintenance: num(ma.mmReq), closeOut: num(ma.cmReq) },
     positions,
     pendingBrackets: brackets,
-    policy: { maxNotionalUsd: p.maxNotionalUsd, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, ordersSentTodayUtc: deps.journal.ordersToday(new Date(deps.now())), source: p.source },
+    policy: { maxNotionalUsd: p.maxNotionalUsd, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, ordersSentTodayUtc: ordersToday(deps), source: p.source },
     asOfBlock: Number(ma.asOfBlock),
   };
 };
@@ -207,7 +209,7 @@ const bracketLocked = async (deps, { mk, u, base, take_profit_pct, stop_loss_pct
   const tp = { isBid: exitIsBid, quantity: 0n, triggerPrice: tpTrigger, triggerOperator: long ? 0 : 1, stopOrderType: 1 };
   const sl = { isBid: exitIsBid, quantity: 0n, triggerPrice: slTrigger, triggerOperator: long ? 1 : 0, stopOrderType: 1 };
   const size = abs(pos.size);
-  const pnlAt = (trigger) => Number(((num(trigger) - num(an.avgEntryPrice)) * (long ? 1 : -1) * Number(fmt(size, mk.baseDecimals))).toFixed(4));
+  const pnlAt = (trigger) => Number(((num(trigger, mk.quoteDecimals ?? 18) - num(an.avgEntryPrice, mk.quoteDecimals ?? 18)) * (long ? 1 : -1) * Number(fmt(size, mk.baseDecimals))).toFixed(4));
   const human = {
     ...base, side: long ? "long" : "short", size: u.qty(size), entryPrice: u.px(an.avgEntryPrice), markPrice: u.px(mark),
     takeProfitTrigger: u.px(tpTrigger), stopLossTrigger: u.px(slTrigger),

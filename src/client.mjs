@@ -31,7 +31,7 @@ export const writeMarkets = (opts = {}) => {
 };
 
 // The account address is derived from the key; the key itself never leaves this function.
-export const accountAddress = () => process.env.PILOT_ACCOUNT ?? privateKeyToAccount(key()).address;
+export const accountAddress = () => process.env.PILOT_ACCOUNT || privateKeyToAccount(key()).address; // empty = unset
 
 // JSON-safe for bigint-heavy SDK rows.
 export const json = (v) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x), 2);

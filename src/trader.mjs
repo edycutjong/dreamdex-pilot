@@ -94,7 +94,7 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
     notionalUsd: notional,
     maxSizeUnderCap: `${u.qty(room > 0n ? room : 0n)} ${mk.baseSymbol}`,
     liquidationDistancePct: dist,
-    ordersToday: deps.journal.ordersToday(new Date(deps.now())),
+    ordersToday: ordersToday(deps),
   });
   // Below the market minimum (a size that floors to 0 on the lot grid included) the SDK previews
   // throw, so refuse here, before any preview, and still name every policy rule it breaks.
@@ -194,7 +194,14 @@ const refuse = (deps, rule, detail, next, extra = {}) => refuseAll(deps, [{ rule
 // exists, and one order per market at a time, open or close (a close is not reduce-only on
 // chain, so two parallel closes sized from the same read would flip the position, and an open
 // racing a close would be sized against a position about to change).
-export const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set() });
+export const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set(), unjournaled: [] });
+// Opens sent today (UTC) for the daily cap: the journal's count plus any open whose journal row
+// failed to write after it landed (kept in memory as its UTC day, so the cap still sees it).
+export const ordersToday = (deps) => {
+  const now = new Date(deps.now());
+  const day = now.toISOString().slice(0, 10);
+  return deps.journal.ordersToday(now) + inflight(deps).unjournaled.filter((d) => d === day).length;
+};
 export const busy = (deps, symbol, action) => ({ ok: false, action, market: symbol, reason: `an order on ${symbol} is already in flight`, next: "wait for it to finish, then try again" });
 
 // A failure that is not the send itself (a read before it): nothing went out.
@@ -255,6 +262,7 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
     deps.journal.append({ kind: action === "close" ? "close" : "order", sent: true, ...out });
   } catch (e) {
     out.journalError = `the order landed but the journal write failed: ${describeError(e)}`;
+    if (action === "open") inflight(deps).unjournaled.push(new Date(deps.now()).toISOString().slice(0, 10));
   }
   return out;
 };
@@ -279,18 +287,22 @@ export const placeOrder = async (deps, { plan_id }) => {
     market: raw.symbol,
     notionalUsd: raw.positionNotionalAfterUsd,
     liquidationDistancePct: raw.liquidationDistancePct,
-    ordersToday: deps.journal.ordersToday(new Date(deps.now())) + s.opens,
+    ordersToday: ordersToday(deps) + s.opens,
   });
   if (refusals.length) return refuseAll(deps, refusals, { plan_id });
 
   s.opens++;
   s.markets.add(raw.symbol);
   try {
-    let touch, pos;
+    let touch, pos, liq, margin;
     try {
-      [touch, pos] = await Promise.all([
+      const ref = { pool: raw.pool, marginBank: raw.marginBank, account: deps.account() };
+      const order = { ...ref, isBid: raw.isBid, quantity: raw.quantity, price: raw.price };
+      [touch, pos, liq, margin] = await Promise.all([
         readTouch(deps.client(), { id: raw.id, poolAddress: raw.pool }),
-        deps.client().getPerpPosition({ pool: raw.pool, marginBank: raw.marginBank, account: deps.account() }),
+        deps.client().getPerpPosition(ref),
+        deps.client().previewPerpLiquidationPrice(order),
+        deps.client().previewPerpOrderMargin(order),
       ]);
     } catch (e) {
       return failedBeforeSend(deps, e, { stage: "place", action: "open", plan_id, market: raw.symbol });
@@ -308,6 +320,21 @@ export const placeOrder = async (deps, { plan_id }) => {
     const exposure = exposureUsd(u, pos.size, raw.isBid ? raw.quantity : -raw.quantity, raw.price, raw.baseDecimals);
     if (exposure > policy.maxNotionalUsd)
       return refuse(deps, "maxNotionalUsd", `the live position makes this order's resulting notional $${exposure.toFixed(2)}, above the $${policy.maxNotionalUsd} cap`, "plan again against the current position (close_position always works)", { plan_id });
+    // The plan's liquidation and margin previews are re-run on live state, read in parallel with
+    // the touch: collateral can move during a plan's lifetime (a loss in another market, a
+    // withdrawal), and the liquidation price moves with it.
+    const mark = BigInt(liq?.markPrice ?? margin?.markPrice ?? 0);
+    const live = [];
+    if (!liq?.priceable || mark === 0n)
+      live.push({ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview for this order at send time", next: "call plan_order again shortly" });
+    else live.push(...evaluate(policy, { market: raw.symbol, liquidationDistancePct: liquidationDistancePct(liq.projectedLiquidationPrice, mark) }));
+    if (!margin?.priceable)
+      live.push({ rule: "marginUnknown", detail: "the exchange could not price a margin preview for this order at send time", next: "call plan_order again shortly" });
+    else if (margin.voucherBlocked)
+      live.push({ rule: "voucherBlocked", detail: `${raw.symbol} is now closed to voucher (paper USDso) margin for this account`, next: "pick a market the voucher allows" });
+    else if (!margin.meetsInitialMargin || !margin.hasCollateralForLock)
+      live.push({ rule: "margin", detail: `live margin preview: initial margin ${margin.meetsInitialMargin ? "met" : "NOT met"}, collateral for lock ${margin.hasCollateralForLock ? "yes" : "NO"}`, next: "plan a smaller size or deposit USDso" });
+    if (live.length) return refuseAll(deps, live, { plan_id });
     return await sendIoc(deps, { action: "open", raw, plan_id });
   } finally {
     s.opens--;

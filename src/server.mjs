@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listMarkets } from "./markets.mjs";
 import { json } from "./client.mjs";
-import { planOrder, placeOrder, closePosition } from "./trader.mjs";
+import { planOrder, placeOrder, closePosition, ordersToday } from "./trader.mjs";
 import { accountInfo, bracket, cancelAll } from "./tools.mjs";
 import { describeError } from "./exchange-errors.mjs";
 
@@ -67,7 +67,7 @@ export const createServer = (deps) => {
         market: z.string().min(1).max(16).describe("Base symbol, e.g. BTC, ETH, SOL"),
         side: z.enum(["long", "short"]),
         // Some clients (MCP Inspector's CLI) JSON-parse "0.1" into a number before sending it.
-        size: z.union([z.string().regex(/^\d+(\.\d+)?$/), z.number().positive().max(1e12)]).optional().describe("Size in base units, e.g. \"0.1\""),
+        size: z.union([z.string().max(40).regex(/^\d+(\.\d+)?$/), z.number().positive().max(1e12)]).optional().describe("Size in base units, e.g. \"0.1\""),
         notional_usd: z.number().positive().max(1_000_000).optional().describe("Size as USD notional, e.g. 20"),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -160,7 +160,7 @@ export const createServer = (deps) => {
     },
     guard("policy", async () => {
       const p = d.policy();
-      return text({ ...p, ordersSentTodayUtc: d.journal.ordersToday(new Date(d.now())), editableBy: "the user only (edit the file; there is no tool for it)" });
+      return text({ ...p, ordersSentTodayUtc: ordersToday(d), editableBy: "the user only (edit the file; there is no tool for it)" });
     }),
   );
 
@@ -172,7 +172,7 @@ export const createServer = (deps) => {
         "Read the append-only journal of every plan, refusal (by pilot's policy or by the exchange) and transaction, newest last. Optionally filter by kind.",
       inputSchema: {
         limit: z.number().int().min(1).max(200).optional().describe("How many recent entries (default 20)"),
-        kind: z.enum(["plan", "refusal", "order", "close", "bracket", "cancel", "error"]).optional(),
+        kind: z.enum(["plan", "refusal", "order", "close", "bracket", "cancel", "error", "note"]).optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

@@ -229,6 +229,36 @@ describe("place_order", () => {
     state.pos = sol(0.2); // another client opened in between
     await placeRefused(deps, state, plan_id, "stalePlan");
   });
+  it("re-previews liquidation at send time: collateral that moved since the plan can bring it under the minimum", async () => {
+    const { deps, state } = makeDeps();
+    state.liq = { ...state.liq, projectedLiquidationPrice: px(82) }; // 20% from mark at plan time
+    const { plan_id } = await plan(deps);
+    state.liq = { ...state.liq, projectedLiquidationPrice: px(92) }; // ~10% after a loss elsewhere
+    await placeRefused(deps, state, plan_id, "minLiquidationDistancePct");
+    expect(deps.journal.read().at(-1).refusals[0].detail).toMatch(/10\.\d\d% from mark/);
+  });
+  it("refuses at send time when the live liquidation or margin preview cannot be priced", async () => {
+    for (const [change, rule] of [
+      [(s) => { s.liq = { ...s.liq, priceable: false }; }, "liquidationUnknown"],
+      [(s) => { s.margin = { ...s.margin, priceable: false }; }, "marginUnknown"],
+    ]) {
+      const { deps, state } = makeDeps();
+      const { plan_id } = await plan(deps);
+      change(state);
+      await placeRefused(deps, state, plan_id, rule);
+    }
+  });
+  it("refuses at send time when the market turned voucher-blocked or the margin no longer covers the order", async () => {
+    for (const [change, rule] of [
+      [(s) => { s.margin = { ...s.margin, voucherBlocked: true }; }, "voucherBlocked"],
+      [(s) => { s.margin = { ...s.margin, hasCollateralForLock: false }; }, "margin"],
+    ]) {
+      const { deps, state } = makeDeps();
+      const { plan_id } = await plan(deps);
+      change(state);
+      await placeRefused(deps, state, plan_id, rule);
+    }
+  });
   it("refuses as stale when a short position appeared since the plan", async () => {
     const { deps, state } = makeDeps();
     const { plan_id } = await plan(deps, { side: "short" });
@@ -258,6 +288,19 @@ describe("place_order", () => {
     const r = await placeOrder({ ...deps, send, journal }, { plan_id });
     expect(r).toMatchObject({ ok: true, tx: "0xfeed", filled: null });
     expect(r.journalError).toMatch(/disk full/);
+  });
+  it("still counts an open toward the daily cap when its journal row failed to write", async () => {
+    const { deps, state, policy } = makeDeps();
+    policy.dailyOrderCap = 1;
+    const journal = { ...deps.journal, append: (e) => { if (e.sent === true) throw new Error("disk full"); return deps.journal.append(e); } };
+    const d = { ...deps, journal };
+    const first = await placeOrder(d, { plan_id: (await plan(d)).plan_id });
+    expect(first).toMatchObject({ ok: true });
+    expect(first.journalError).toMatch(/disk full/);
+    const second = await plan(d);
+    expect(second.verdict).toBe("refused");
+    expect(second.refusals.map((r) => r.rule)).toContain("dailyOrderCap");
+    expect(state.sends).toHaveLength(1);
   });
   it("journals a failed read before the send and sends nothing", async () => {
     const { deps, state, journal } = makeDeps();

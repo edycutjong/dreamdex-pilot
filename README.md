@@ -11,7 +11,7 @@ Testnet only (Somnia Hideki, chain 50383). Use a burner key, never a wallet that
 | `markets` | Lists the perp markets with mark price, max leverage, minimum size, lot and tick size, funding and open interest. |
 | `account` | Reads the account live: STT for gas, USDso collateral, margin status, open positions with entry, mark and unrealized PnL, pending brackets, policy headroom. |
 | `plan_order` | Plans a market-taking (IOC) order without sending it: max size, margin, projected liquidation price, and a verdict against your policy. An ok plan gets a short-lived one-shot `plan_id`. |
-| `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan and re-checks the policy. If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason. |
+| `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan, re-checks the policy and re-runs the liquidation and margin previews on live state. If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason. |
 | `close_position` | Closes the whole position in a market from the live on-chain size. Never blocked by policy. |
 | `bracket` | Arms a linked take-profit and stop-loss (one cancels the other) on an open position. Reduce-only, held on chain. |
 | `cancel_all` | Cancels pending brackets and any resting orders; brackets are confirmed on chain, not only from the indexer. |
@@ -65,7 +65,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 ## Safety
 
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
-- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy and the live position when it sends.
+- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
 - The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
 - Closing and cancelling reduce risk, so policy never blocks them.
 
