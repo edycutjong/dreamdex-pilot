@@ -65,7 +65,7 @@ const exposureUsd = (u, posSize, signedQty, price, baseDecimals) => u.usd(notion
 
 export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const policy = deps.policy();
-  for (const [id, p] of deps.plans) if (p.used || deps.now() > p.expiresAt) deps.plans.delete(id); // sweep dead plans
+  for (const [id, p] of deps.plans) if (deps.now() > p.expiresAt) deps.plans.delete(id); // sweep expired plans
   const client = deps.client();
   const account = deps.account();
   const mk = await findMarket(client, market);
@@ -175,7 +175,7 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const expiresAt = deps.now() + policy.planTtlSec * 1000;
   deps.plans.set(plan_id, {
     expiresAt, used: false, human,
-    raw: { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity, baseDecimals: mk.baseDecimals, quoteDecimals: q, liquidationDistancePct: dist, positionNotionalAfterUsd: exposure },
+    raw: { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity, baseDecimals: mk.baseDecimals, quoteDecimals: q, liquidationDistancePct: dist, positionNotionalAfterUsd: exposure, positionSize: pos.size },
   });
   deps.journal.append({ kind: "plan", plan_id, action: "open", ...human, expiresAt: new Date(expiresAt).toISOString() });
   return { verdict: "ok", plan_id, expiresInSec: policy.planTtlSec, ...human, policy: policySummary(policy), next: `call place_order with plan_id ${plan_id} within ${policy.planTtlSec}s to send it` };
@@ -230,8 +230,13 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
     const next = sent === false ? "nothing was sent; fix the error and plan again" : "send status unknown: check the position (close_position reads it live) and the explorer before trying again";
     return { ok: false, error: msg, sent, tx, next, ...base };
   }
-  // From here a real tx exists: nothing below may throw before its row is journaled.
-  const filled = (res.fills ?? []).reduce((s, f) => s + BigInt(f.quantityFilled), 0n);
+  // From here a real tx exists: nothing below may throw, and the row carries the tx hash.
+  let filled = null;
+  try {
+    filled = u.qty((res.fills ?? []).reduce((s, f) => s + BigInt(f.quantityFilled), 0n));
+  } catch {
+    // a malformed fill row: the tx still landed; report the fill as unknown
+  }
   let positionAfter = null;
   let readBack;
   try {
@@ -244,9 +249,13 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
   const out = {
     ok: true, ...base, tx: res.hash, block: Number(res.receipt?.blockNumber ?? 0), status: res.receipt?.status ?? null,
     gasUsed: res.receipt?.gasUsed?.toString?.() ?? null, orderId: res.orderId?.toString() ?? null,
-    filled: u.qty(filled), requested: u.qty(raw.quantity), positionAfter, ...(readBack ? { readBack } : {}),
+    filled, requested: u.qty(raw.quantity), positionAfter, ...(readBack ? { readBack } : {}),
   };
-  deps.journal.append({ kind: action === "close" ? "close" : "order", sent: true, ...out });
+  try {
+    deps.journal.append({ kind: action === "close" ? "close" : "order", sent: true, ...out });
+  } catch (e) {
+    out.journalError = `the order landed but the journal write failed: ${describeError(e)}`;
+  }
   return out;
 };
 
@@ -290,11 +299,15 @@ export const placeOrder = async (deps, { plan_id }) => {
     // limit, the plan's numbers are stale; refuse rather than send an IOC that will not fill.
     const moved = raw.isBid ? touch.ask === 0n || touch.ask > raw.price : touch.bid === 0n || touch.bid < raw.price;
     if (moved) return refuse(deps, "stalePlan", `the ${raw.isBid ? "ask" : "bid"} moved to ${u.px(raw.isBid ? touch.ask : touch.bid)}, past the plan's limit ${u.px(raw.price)}`, "call plan_order again", { plan_id });
+    // The plan's liquidation preview and exposure were computed for the position it saw; if that
+    // changed (another client, a liquidation), its numbers no longer describe this order.
+    if (pos.size !== raw.positionSize)
+      return refuse(deps, "stalePlan", `the ${raw.symbol} position changed from ${u.qty(raw.positionSize)} to ${u.qty(pos.size)} since the plan`, "call plan_order again", { plan_id });
     // The position may have changed since the plan (another client, a liquidation): the
     // exposure cap is checked against the live one.
     const exposure = exposureUsd(u, pos.size, raw.isBid ? raw.quantity : -raw.quantity, raw.price, raw.baseDecimals);
     if (exposure > policy.maxNotionalUsd)
-      return refuse(deps, "maxNotionalUsd", `the live position makes this order's resulting notional $${exposure.toFixed(2)}, above the $${policy.maxNotionalUsd} cap`, "plan again against the current position", { plan_id });
+      return refuse(deps, "maxNotionalUsd", `the live position makes this order's resulting notional $${exposure.toFixed(2)}, above the $${policy.maxNotionalUsd} cap`, "plan again against the current position (close_position always works)", { plan_id });
     return await sendIoc(deps, { action: "open", raw, plan_id });
   } finally {
     s.opens--;
@@ -314,20 +327,27 @@ export const closePosition = async (deps, { market }) => {
   s.markets.add(mk.baseSymbol);
   try {
     return await closeLocked(deps, { policy, client, mk, u });
-  } catch (e) {
-    return failedBeforeSend(deps, e, { stage: "close", action: "close", market: mk.baseSymbol });
   } finally {
     s.markets.delete(mk.baseSymbol);
   }
 };
 
 const closeLocked = async (deps, { policy, client, mk, u }) => {
-  const pos = await client.getPerpPosition({ pool: mk.poolAddress, marginBank: mk.marginBank, account: deps.account() });
+  // Only the reads are caught here: once sendIoc runs, a tx may exist and sendIoc reports it.
+  let pos, touch;
+  try {
+    pos = await client.getPerpPosition({ pool: mk.poolAddress, marginBank: mk.marginBank, account: deps.account() });
+    if (pos.size !== 0n) touch = await readTouch(client, mk);
+  } catch (e) {
+    return failedBeforeSend(deps, e, { stage: "close", action: "close", market: mk.baseSymbol });
+  }
   if (pos.size === 0n) return { ok: true, action: "close", market: mk.baseSymbol, status: "already flat", positionAfter: "0" };
   const isBid = pos.size < 0n; // a short closes with a buy
-  const touch = await readTouch(client, mk);
-  if ((isBid && touch.ask === 0n) || (!isBid && touch.bid === 0n))
-    return { ok: false, action: "close", market: mk.baseSymbol, reason: `no ${isBid ? "asks" : "bids"} on the book to close against`, next: "try again shortly", positionBefore: u.qty(pos.size) };
+  if ((isBid && touch.ask === 0n) || (!isBid && touch.bid === 0n)) {
+    const reason = `no ${isBid ? "asks" : "bids"} on the book to close against`;
+    deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "close", action: "close", market: mk.baseSymbol, rules: ["emptyBook"], reason, positionBefore: u.qty(pos.size) });
+    return { ok: false, action: "close", market: mk.baseSymbol, reason, next: "try again shortly", positionBefore: u.qty(pos.size) };
+  }
   const price = limitPrice({ isBid, ...touch, tick: BigInt(mk.tickSize), slippagePct: policy.maxSlippagePct });
   const raw = { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity: abs(pos.size), baseDecimals: mk.baseDecimals, quoteDecimals: mk.quoteDecimals ?? 18 };
   return sendIoc(deps, { action: "close", raw, extra: { positionBefore: u.qty(pos.size) } });
