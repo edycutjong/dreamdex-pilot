@@ -47,12 +47,12 @@ describe("MCP server", () => {
     expect(r.content[0].text).toMatch(/RpcError: socket closed/);
   });
 
-  it("lists all six tools with honest annotations", async () => {
+  it("lists all nine tools with honest annotations", async () => {
     const { deps } = makeDeps();
     const c = await connectDeps(deps);
     const { tools } = await c.listTools();
     const by = Object.fromEntries(tools.map((t) => [t.name, t]));
-    expect(Object.keys(by).sort()).toEqual(["close_position", "journal", "markets", "place_order", "plan_order", "policy"]);
+    expect(Object.keys(by).sort()).toEqual(["account", "bracket", "cancel_all", "close_position", "journal", "markets", "place_order", "plan_order", "policy"]);
     expect(by.place_order.annotations.destructiveHint).toBe(true);
     expect(by.close_position.annotations.destructiveHint).toBe(true);
     expect(by.plan_order.annotations.readOnlyHint).toBe(true);

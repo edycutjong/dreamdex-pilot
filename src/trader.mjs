@@ -36,19 +36,19 @@ export const liquidationDistancePct = (liq, mark) => {
   return (Number(abs(mark - liq)) / Number(mark)) * 100;
 };
 
-const findMarket = async (client, symbol) => {
+export const findMarket = async (client, symbol) => {
   const want = symbol.toUpperCase();
   const mk = (await client.listPerpMarkets()).find((p) => p.baseSymbol === want);
   if (!mk) throw Object.assign(new Error(`No perp market named ${want}. Call markets to see all of them.`), { pilotUser: true });
   return mk;
 };
 
-const readTouch = async (client, mk) => {
+export const readTouch = async (client, mk) => {
   const t = (await client.getBookTopsOnchain([{ id: mk.id, poolAddress: mk.poolAddress }])).tops[mk.poolAddress];
   return { bid: BigInt(t?.bestBid ?? 0), ask: BigInt(t?.bestAsk ?? 0) };
 };
 
-const units = (mk) => {
+export const units = (mk) => {
   const q = mk.quoteDecimals ?? 18;
   const b = mk.baseDecimals;
   return {

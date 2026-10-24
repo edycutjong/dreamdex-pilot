@@ -25,19 +25,19 @@ export const accountAddress = () => process.env.PILOT_ACCOUNT ?? privateKeyToAcc
 // JSON-safe for bigint-heavy SDK rows.
 export const json = (v) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x), 2);
 
-// The signed send for place_order/close_position, built on first use. The SDK's debug sink is
-// the only place a REVERTED order's tx hash surfaces (the thrown ContractRevertError carries
-// none), so the sender keeps it and attaches it as `txHash`: an exchange refusal still leaves
-// a receipt anyone can look up.
-export const createSender = (make = writeMarkets) => {
+// The signed writes, built on first use: one writer, one queue, so every transaction pilot
+// sends (orders, stops, cancels) is serialized and `lastHash` cannot be swapped by an overlap.
+// The SDK's debug sink is the only place a REVERTED order's tx hash surfaces (the thrown
+// ContractRevertError carries none), so it is kept and attached to the error as `txHash`: an
+// exchange refusal still leaves a receipt anyone can look up.
+export const createChain = (make = writeMarkets) => {
   let writer;
   let lastHash = null;
   const debug = (e) => {
     if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) lastHash = e.data.hash;
   };
-  // One send at a time: `lastHash` is shared, so overlapping sends could swap hashes.
   let queue = Promise.resolve();
-  const sendOne = async (order) => {
+  const sendOne = async (fn) => {
     try {
       writer ??= make({ debug });
     } catch (e) {
@@ -46,15 +46,24 @@ export const createSender = (make = writeMarkets) => {
     }
     lastHash = null;
     try {
-      return await writer.trader.placePerpOrder(order);
+      return await fn(writer.trader);
     } catch (e) {
-      e.txHash = lastHash;
+      e.txHash ??= lastHash;
       throw e;
     }
   };
-  return (order) => {
-    const run = queue.then(() => sendOne(order));
-    queue = run.catch(() => {});
-    return run;
+  const run = (fn) => {
+    const r = queue.then(() => sendOne(fn));
+    queue = r.catch(() => {});
+    return r;
+  };
+  return {
+    send: (order) => run((t) => t.placePerpOrder(order)),
+    placeStops: (params) => run((t) => t.placePerpStopOrder(params)),
+    cancelStops: (params) => run((t) => t.cancelPerpStopOrders(params)),
+    cancelAll: (pool) => run((t) => t.cancelAllOrders(pool)),
   };
 };
+
+// place_order/close_position only need the order send.
+export const createSender = (make = writeMarkets) => createChain(make).send;

@@ -1,9 +1,10 @@
-// Pilot MCP server: markets, plan_order, place_order, close_position, policy, journal.
+// Pilot MCP server: markets, account, plan_order, place_order, close_position, bracket, cancel_all, policy, journal.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listMarkets } from "./markets.mjs";
 import { json } from "./client.mjs";
 import { planOrder, placeOrder, closePosition } from "./trader.mjs";
+import { accountInfo, bracket, cancelAll } from "./tools.mjs";
 import { describeError } from "./exchange-errors.mjs";
 
 export const VERSION = "0.1.0";
@@ -20,6 +21,7 @@ const guard = (label, fn) => async (args) => {
 };
 
 // deps: client() SDK read client; account() trading address; send(order) the signed placePerpOrder;
+// chain {placeStops, cancelStops, cancelAll} the other signed writes; native() the STT balance;
 // journal; policy(); plans (Map, optional); now() (optional). Tests pass stubs for all of them.
 export const createServer = (deps) => {
   const d = { plans: new Map(), now: () => Date.now(), ...deps };
@@ -39,6 +41,18 @@ export const createServer = (deps) => {
       if (symbol && rows.length === 0) return fail(`No perp market named ${symbol.toUpperCase()}. Call markets with no symbol to see all of them.`);
       return text({ network: NETWORK, count: rows.length, markets: rows });
     }),
+  );
+
+  server.registerTool(
+    "account",
+    {
+      title: "Show the trading account",
+      description:
+        "Show this account's state read live from chain: STT for gas, USDso collateral (equity, unlocked, locked as margin), margin status, open positions with entry, mark and unrealized PnL, pending take-profit/stop-loss brackets, and the policy headroom. Call it before sizing an order and after any trade.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    guard("account", async () => text({ network: NETWORK, ...(await accountInfo(d)) })),
   );
 
   server.registerTool(
@@ -98,6 +112,40 @@ export const createServer = (deps) => {
   );
 
   server.registerTool(
+    "bracket",
+    {
+      title: "Arm take-profit + stop-loss on a position (real testnet transaction)",
+      description:
+        "Arm a linked take-profit and stop-loss (one cancels the other) on this account's open position in one market. Triggers are percentages away from the current mark; both legs close the WHOLE position at trigger time as reduce-only market orders held on chain, so a bracket can only reduce risk. Needs an existing position and no pending bracket on that market; holds 0.15 STT per leg until it fires or is cancelled (cancel_all refunds it). Only this key's own account can arm stops.",
+      inputSchema: {
+        market: z.string().min(1).max(16).describe("Base symbol of the market with the open position, e.g. SOL"),
+        take_profit_pct: z.number().min(0.1).max(50).describe("Take-profit distance from the current mark, in percent (e.g. 3)"),
+        stop_loss_pct: z.number().min(0.1).max(50).describe("Stop-loss distance from the current mark, in percent (e.g. 2)"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    guard("bracket", async (args) => {
+      const r = await bracket(d, args);
+      return r.ok ? text({ network: NETWORK, ...r }) : fail({ network: NETWORK, ...r });
+    }),
+  );
+
+  server.registerTool(
+    "cancel_all",
+    {
+      title: "Cancel brackets and resting orders (real testnet transaction)",
+      description:
+        "Cancel this account's pending take-profit/stop-loss brackets (their STT is refunded) and any resting orders, in one market or in all of them. pilot's own orders are immediate-or-cancel and never rest, so this mostly tears down brackets. Never blocked by policy: cancelling reduces risk. Says so when there is nothing to cancel.",
+      inputSchema: { market: z.string().min(1).max(16).optional().describe("Base symbol to limit the cancel to; omit for every market") },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    },
+    guard("cancel_all", async (args) => {
+      const r = await cancelAll(d, args);
+      return r.ok ? text({ network: NETWORK, ...r }) : fail({ network: NETWORK, ...r });
+    }),
+  );
+
+  server.registerTool(
     "policy",
     {
       title: "Show the trading policy",
@@ -120,7 +168,7 @@ export const createServer = (deps) => {
         "Read the append-only journal of every plan, refusal (by pilot's policy or by the exchange) and transaction, newest last. Optionally filter by kind.",
       inputSchema: {
         limit: z.number().int().min(1).max(200).optional().describe("How many recent entries (default 20)"),
-        kind: z.enum(["plan", "refusal", "order", "close", "error"]).optional(),
+        kind: z.enum(["plan", "refusal", "order", "close", "bracket", "cancel", "error"]).optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
