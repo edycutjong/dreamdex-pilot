@@ -31,7 +31,7 @@ Codex planned exactly 0.00031 BTC and it filled. From [`DEMO.md`](DEMO.md) (jour
 > the position this order leaves would be $30.80 notional, above the $25 cap per market
 > next safe action: no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room
 
-The agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b) (block 31928406), close [`0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324) (block 31928458), both success on the RPC re-read (`evidence/p9-undercap-cc.txt`, a run on the current code, outside the `DEMO.md` counts).
+The agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b) (block 31928406), close [`0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324) (block 31928458), both success on the RPC re-read (`evidence/p9-undercap-cc.txt`, on the code of commit 85e9c0d, which later commits change only in the `DEMO.md` renderer; outside the `DEMO.md` counts).
 
 **Liquidation distance.** Under a test policy that lifts the cap to $1000 (plans only, nothing sent), a 3 SOL long (6.7x) was refused: "liquidation would sit 12.80% from mark, closer than the 15% minimum" (`DEMO.md`, journal `p6-liquidation-rule-journal.jsonl`).
 
@@ -108,7 +108,7 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 claude mcp add pilot -- node "$PWD/bin/pilot.mjs"
 ```
 
-For a trading session with pilot's tools only (no shell, no file tools; `--tools ""` goes last). Checked with a throwaway key: the agent listed only pilot's nine tools, could not read the key, and could not write the policy file (`evidence/p9-restricted-cc.txt`):
+For a trading session with pilot's tools only (no shell, no file tools; `--tools ""` goes last). The same flags were checked headless with a throwaway key (`claude -p` with `--allowedTools mcp__pilot` added so pilot's tools run without a prompt): the agent listed only pilot's nine tools and no shell or file tools, could not read the key, and the policy file was not written (`evidence/p9-restricted-cc.txt`):
 
 ```bash
 mkdir -p ~/.pilot && printf '{"mcpServers":{"pilot":{"command":"node","args":["%s/bin/pilot.mjs"]}}}\n' "$PWD" > ~/.pilot/claude-mcp.json
@@ -124,13 +124,13 @@ args = ["/path/to/dreamdex-pilot/bin/pilot.mjs"]
 env_vars = ["PILOT_PRIVATE_KEY"]
 ```
 
-For a trading session, start Codex with a read-only sandbox and `PILOT_*` kept out of its shell. Codex keeps a shell; in a check with a throwaway key it saw `PILOT_PRIVATE_KEY` unset and its write to the policy file was refused (`evidence/p9-restricted-codex.txt`):
+For a trading session, start Codex with a read-only sandbox and `PILOT_*` kept out of its shell. Codex keeps a shell; in a `codex exec` check with the same two settings and a throwaway key, its shell saw `PILOT_PRIVATE_KEY` unset and its write to the policy file was refused (`evidence/p9-restricted-codex.txt`). Only those two paths were tested:
 
 ```bash
 codex -s read-only -c 'shell_environment_policy.exclude=["PILOT_*"]'
 ```
 
-**MCP Inspector** (plan → place needs UI mode; the CLI line is for one-shot calls, see Honest limits; no Inspector-placed order is in the receipts; pass environment values with `-e`, as in the no-key lines above)
+**MCP Inspector** (plan → place needs one server process across calls, which UI mode is meant to keep, not exercised here; the CLI line is for one-shot calls, see Honest limits; no Inspector-placed order is in the receipts; pass environment values with `-e`, as in the no-key lines above)
 
 ```bash
 npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
@@ -152,7 +152,7 @@ Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.ap
 https://github.com/edycutjong/dreamdex-pilot
 ```
 
-X post 3 (below) shares this card.
+X post 3 (planned, below) shares this card.
 
 A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL ([`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c)), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
 
@@ -168,12 +168,12 @@ A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.
 ## Honest limits
 
 - Testnet only. Nothing here has run on mainnet. Moving there means changing the chain, contract addresses and indexer in `src/client.mjs`, the network name in `src/server.mjs` and the explorer in `src/demo.mjs`, and re-checking that every market shares one margin bank, which `account` assumes (true for all 21 Hideki markets on 2026-10-24, `evidence/p8-r05-markets-check.txt`, from `scripts/markets-check.mjs`; the assumption is in `src/tools.mjs`).
-- One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
+- One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because no natural one could be recorded through pilot's freshness check (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
 - A close is a plain IOC order: the SDK's reduce-only intent exists for stop orders (`bracket`) only. If something else shrinks the position while a close is in flight (a bracket firing, another client), the close can open the other side; `close_position` reads the position back and says so (`flipped`).
 - No Somnia Reactivity or Somnia Agents yet: pilot reads and writes through the markets SDK only.
 - If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.
-- Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, turn those tools off (the Claude Code and Codex lines in Run it, each checked with a throwaway key) and keep the burner small.
+- Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, turn those tools off or fence them in (Run it: Claude Code with no built-in tools; Codex with a read-only sandbox and `PILOT_*` kept out of its shell, which still leaves it a shell; each checked with a throwaway key) and keep the burner small.
 - Plans live in the server's memory only, so restarting the server drops them.
 - At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49.50, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
 - MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
