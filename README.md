@@ -41,7 +41,7 @@ Brackets and cancels are on chain too, e.g. bracket `0x0a95c4234df79a4f294b44eb8
 
 Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`node bin/pilot.mjs journal --card`).
 
-Testnet only: the Somnia Tokyo testnet, as the bounty listing names it (Hideki, chain 50383). Use a burner key, never a wallet that holds anything real.
+Testnet only: the Somnia Tokyo testnet, as the bounty listing names it; dreamDEX's docs call that chain Hideki (chain id 50383). Use a burner key, never a wallet that holds anything real.
 
 ## What pilot adds over handing the agent the SDK
 
