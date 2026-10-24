@@ -1,0 +1,27 @@
+{
+  "name": "dreamdex-pilot",
+  "version": "0.1.0",
+  "description": "Pilot: an MCP server that lets an AI agent plan, guard and place real dreamDEX perps orders on Somnia testnet",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "pilot": "bin/pilot.mjs"
+  },
+  "scripts": {
+    "start": "node bin/pilot.mjs",
+    "test": "vitest run",
+    "spike": "node scripts/spike.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@somnia-chain/markets-sdk": "0.32.1",
+    "viem": "2.57.7",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "vitest": "5.0.5"
+  }
+}
