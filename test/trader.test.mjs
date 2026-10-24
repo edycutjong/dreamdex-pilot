@@ -289,6 +289,41 @@ describe("place_order", () => {
     expect(r).toMatchObject({ ok: true, tx: "0xfeed", filled: null });
     expect(r.journalError).toMatch(/disk full/);
   });
+  it("tells a reused plan_id what became of it: refused and nothing sent, or sent as a tx", async () => {
+    const { deps, state } = makeDeps();
+    const a = await plan(deps);
+    state.ask = px(110);
+    await placeRefused(deps, state, a.plan_id, "stalePlan");
+    const again = await placeOrder(deps, { plan_id: a.plan_id });
+    expect(again).toMatchObject({ ok: false, rule: "planAlreadyUsed" });
+    expect(again.reason).toMatch(/refused it \(stalePlan\) and sent nothing/);
+    state.ask = px(102.52);
+    const b = await plan(deps);
+    const sent = await placeOrder(deps, { plan_id: b.plan_id });
+    expect((await placeOrder(deps, { plan_id: b.plan_id })).reason).toMatch(new RegExp(`sent as tx ${sent.tx}`));
+  });
+  it("re-derives the limit from the live touch and maxSlippagePct, and only ever tightens it", async () => {
+    const { deps, state, policy } = makeDeps();
+    const tick = 10n ** 16n;
+    const a = await plan(deps); // ask 102.52, 1% -> limit 103.54
+    policy.maxSlippagePct = 0.1;
+    const tight = await placeOrder(deps, { plan_id: a.plan_id });
+    expect(state.sends.at(-1).price).toBe(limitPrice({ isBid: true, bid: state.bid, ask: state.ask, tick, slippagePct: 0.1 }));
+    expect(tight).toMatchObject({ ok: true, planLimitPrice: "103.54" });
+    policy.maxSlippagePct = 1;
+    const b = await plan(deps);
+    state.ask = px(103); // worse, still inside the plan's limit: the plan's limit stands
+    const kept = await placeOrder(deps, { plan_id: b.plan_id });
+    expect(state.sends.at(-1).price).toBe(px(103.54));
+    expect(kept.planLimitPrice).toBeUndefined();
+  });
+  it("a live preview that throws at send time is a failed read: nothing sent", async () => {
+    const { deps, state } = makeDeps();
+    const { plan_id } = await plan(deps);
+    deps.client().previewPerpLiquidationPrice = async () => { throw new Error("rpc 502"); };
+    expect(await placeOrder(deps, { plan_id })).toMatchObject({ ok: false, sent: false });
+    expect(state.sends).toHaveLength(0);
+  });
   it("still counts an open toward the daily cap when its journal row failed to write", async () => {
     const { deps, state, policy } = makeDeps();
     policy.dailyOrderCap = 1;
@@ -384,6 +419,13 @@ describe("place_order", () => {
 });
 
 describe("close_position", () => {
+  it("an empty book refuses the close with refused_by pilot-policy, in the answer as in the journal", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1);
+    state.bid = 0n;
+    expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: false, refused_by: "pilot-policy", rule: "emptyBook" });
+    expect(state.sends).toHaveLength(0);
+  });
   it("says so when the close flipped the position (something else reduced it while the close was in flight)", async () => {
     const { deps, state } = makeDeps();
     state.pos = sol(0.1);

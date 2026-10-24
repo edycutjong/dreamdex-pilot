@@ -175,7 +175,7 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const expiresAt = deps.now() + policy.planTtlSec * 1000;
   deps.plans.set(plan_id, {
     expiresAt, used: false, human,
-    raw: { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity, baseDecimals: mk.baseDecimals, quoteDecimals: q, liquidationDistancePct: dist, positionNotionalAfterUsd: exposure, positionSize: pos.size },
+    raw: { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, tick, markPrice: mark, quantity, baseDecimals: mk.baseDecimals, quoteDecimals: q, liquidationDistancePct: dist, positionNotionalAfterUsd: exposure, positionSize: pos.size },
   });
   deps.journal.append({ kind: "plan", plan_id, action: "open", ...human, expiresAt: new Date(expiresAt).toISOString() });
   return { verdict: "ok", plan_id, expiresInSec: policy.planTtlSec, ...human, policy: policySummary(policy), next: `call place_order with plan_id ${plan_id} within ${policy.planTtlSec}s to send it` };
@@ -278,11 +278,28 @@ export const placeOrder = async (deps, { plan_id }) => {
   const s = inflight(deps);
   const p = deps.plans.get(plan_id);
   if (!p) return refuse(deps, "unknownPlan", `no live plan ${plan_id}: plans live in this server's memory only and are one-shot`, "call plan_order first", { plan_id });
-  if (p.used) return refuse(deps, "planAlreadyUsed", `plan ${plan_id} was already sent once`, "call plan_order for a new plan", { plan_id });
-  const { raw } = p;
-  if (s.markets.has(raw.symbol)) return busy(deps, raw.symbol, "open"); // plan stays usable
+  if (p.used) return refuse(deps, "planAlreadyUsed", `plan ${plan_id} was already used: ${p.outcome}`, "call plan_order for a new plan", { plan_id });
+  if (s.markets.has(p.raw.symbol)) return busy(deps, p.raw.symbol, "open"); // plan stays usable
   // Claimed synchronously, before any await: two parallel calls with one plan_id cannot both pass.
+  // The claim is not the send: `outcome` records what became of it, so a retry is told the truth.
   p.used = true;
+  p.outcome = "an earlier place_order call is handling it right now";
+  let r;
+  try {
+    r = await placeClaimed(deps, { plan_id, p, policy, s });
+  } catch (e) {
+    p.outcome = `an earlier place_order failed before sending anything (${describeError(e)})`;
+    throw e;
+  }
+  p.outcome = r.ok ? `it was sent as tx ${r.tx}`
+    : r.refused_by === "exchange" ? `it was sent and the exchange refused it (${r.code}${r.tx ? `, tx ${r.tx}` : ""})`
+    : r.sent === false || r.refused_by === "pilot-policy" ? `an earlier place_order refused it (${r.rule ?? "a read failed"}) and sent nothing`
+    : `its send status is unknown (${r.error}); check the position before trying again`;
+  return r;
+};
+
+const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
+  const { raw } = p;
   if (deps.now() > p.expiresAt) {
     deps.plans.delete(plan_id);
     return refuse(deps, "planExpired", `plan ${plan_id} expired ${Math.round((deps.now() - p.expiresAt) / 1000)}s ago (plans live ${policy.planTtlSec}s)`, "call plan_order again for fresh prices", { plan_id });
@@ -329,7 +346,7 @@ export const placeOrder = async (deps, { plan_id }) => {
     // The plan's liquidation and margin previews are re-run on live state, read in parallel with
     // the touch: collateral can move during a plan's lifetime (a loss in another market, a
     // withdrawal), and the liquidation price moves with it.
-    const mark = BigInt(liq?.markPrice ?? margin?.markPrice ?? 0);
+    const mark = BigInt(liq?.markPrice ?? margin?.markPrice ?? raw.markPrice ?? 0);
     const live = [];
     if (!liq?.priceable || mark === 0n)
       live.push({ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview for this order at send time", next: "call plan_order again shortly" });
@@ -341,7 +358,11 @@ export const placeOrder = async (deps, { plan_id }) => {
     else if (!margin.meetsInitialMargin || !margin.hasCollateralForLock)
       live.push({ rule: "margin", detail: `live margin preview: initial margin ${margin.meetsInitialMargin ? "met" : "NOT met"}, collateral for lock ${margin.hasCollateralForLock ? "yes" : "NO"}`, next: "plan a smaller size or deposit USDso" });
     if (live.length) return refuseAll(deps, live, { plan_id });
-    return await sendIoc(deps, { action: "open", raw, plan_id });
+    // The worst price is re-derived from the live touch and the live maxSlippagePct and only ever
+    // tightens the plan's limit: a better touch, or a slippage limit cut since the plan, applies.
+    const limitNow = limitPrice({ isBid: raw.isBid, ...touch, tick: raw.tick, slippagePct: policy.maxSlippagePct });
+    const price = raw.isBid ? (limitNow < raw.price ? limitNow : raw.price) : limitNow > raw.price ? limitNow : raw.price;
+    return await sendIoc(deps, { action: "open", raw: { ...raw, price }, plan_id, extra: price === raw.price ? {} : { planLimitPrice: u.px(raw.price) } });
   } finally {
     s.opens--;
     s.markets.delete(raw.symbol);
@@ -379,7 +400,7 @@ const closeLocked = async (deps, { policy, client, mk, u }) => {
   if ((isBid && touch.ask === 0n) || (!isBid && touch.bid === 0n)) {
     const reason = `no ${isBid ? "asks" : "bids"} on the book to close against`;
     deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "close", action: "close", market: mk.baseSymbol, rules: ["emptyBook"], reason, positionBefore: u.qty(pos.size) });
-    return { ok: false, action: "close", market: mk.baseSymbol, reason, next: "try again shortly", positionBefore: u.qty(pos.size) };
+    return { ok: false, refused_by: "pilot-policy", rule: "emptyBook", action: "close", market: mk.baseSymbol, reason, next: "try again shortly", positionBefore: u.qty(pos.size) };
   }
   const price = limitPrice({ isBid, ...touch, tick: BigInt(mk.tickSize), slippagePct: policy.maxSlippagePct });
   const raw = { symbol: mk.baseSymbol, pool: mk.poolAddress, marginBank: mk.marginBank, id: mk.id, isBid, price, quantity: abs(pos.size), baseDecimals: mk.baseDecimals, quoteDecimals: mk.quoteDecimals ?? 18 };

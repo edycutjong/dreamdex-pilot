@@ -10,6 +10,13 @@ const SOL = {
 };
 const BTC = { ...SOL, baseSymbol: "BTC", poolAddress: "0x0000000000000000000000000000000000000001", initialMarginBps: 1000 };
 
+describe("quote decimals", () => {
+  it("formats prices in the market's quote decimals, not a fixed 18", () => {
+    const six = { ...SOL, quoteDecimals: 6, markPrice: "102509386", indexPrice: "102564359", lastPrice: "102510000", tickSize: "10000" };
+    expect(formatMarket(six)).toMatchObject({ markPrice: 102.509386, indexPrice: 102.564359, lastPrice: 102.51, tickSize: "0.01" });
+  });
+});
+
 describe("formatMarket", () => {
   it("converts raw units to human units", () => {
     const r = formatMarket(SOL);

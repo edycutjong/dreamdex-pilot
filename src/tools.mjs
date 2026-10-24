@@ -40,6 +40,7 @@ const liveStops = async (deps, mk, indexed, rows = deps.journal.read()) => {
 export const armedBrackets = async (deps, market) => {
   const client = deps.client();
   const mk = await findMarket(client, market);
+  if (!mk.stopRegistry) return [];
   return liveStops(deps, mk, await pendingStops(client, deps.account()));
 };
 
@@ -321,7 +322,7 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
       fail.push(failTx(deps, e, { ...base, market: mk.baseSymbol, stage: "cancel orders" }));
     }
   }
-  result.nothingToCancel = result.cancelledStops.length === 0 && result.cancelledOrders.length === 0 && fail.length === 0;
+  result.nothingToCancel = result.cancelledStops.length === 0 && result.cancelledOrders.length === 0 && fail.length === 0 && !result.journalUnreadable;
   if (result.nothingToCancel) result.checked = "indexer pending stops + the brackets this journal armed (confirmed on chain) + resting orders on each market";
   if (fail.length) {
     result.failures = fail;

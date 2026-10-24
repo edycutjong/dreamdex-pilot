@@ -113,6 +113,16 @@ describe("MCP server", () => {
     state.pos = sol(0.1);
     const clean = JSON.parse((await c.callTool({ name: "close_position", arguments: { market: "SOL" } })).content[0].text);
     expect(clean.bracketStillArmed).toBeUndefined();
+    state.listError = new Error("indexer 503");
+    state.pos = sol(0.1);
+    const unread = JSON.parse((await c.callTool({ name: "close_position", arguments: { market: "SOL" } })).content[0].text);
+    expect(unread).toMatchObject({ ok: true, positionAfter: "0" });
+    expect(unread.bracketCheck).toMatch(/could not read the SOL brackets.*indexer 503/);
+  });
+  it("refuses a size string longer than 40 characters at the schema", async () => {
+    const c = await connectDeps(makeDeps().deps);
+    const r = await c.callTool({ name: "plan_order", arguments: { market: "SOL", side: "long", size: "0." + "1".repeat(40) } });
+    expect(r.isError).toBe(true);
   });
   it("journals an unexpected plan_order failure", async () => {
     const { deps } = makeDeps();

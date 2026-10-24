@@ -120,6 +120,10 @@ describe("cancel_all", () => {
     expect(r).toMatchObject({ ok: true });
     expect(r.cancelledStops).toEqual([{ market: "SOL", id: "11" }, { market: "SOL", id: "12" }]);
     expect(r.journalUnreadable).toMatch(/not valid JSON.*indexer only/);
+    state.stops = [];
+    const none = await cancelAll(deps, { market: "SOL" });
+    expect(none.nothingToCancel).toBe(false); // the journal half was not checked
+    expect(none.journalUnreadable).toBeDefined();
   });
   it("says so when there is nothing to cancel, names what it checked, and still looks for resting orders", async () => {
     const { deps, state, journal } = makeDeps();

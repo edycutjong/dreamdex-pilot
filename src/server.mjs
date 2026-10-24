@@ -90,7 +90,7 @@ export const createServer = (deps) => {
     {
       title: "Send a planned perp order (real testnet transaction)",
       description:
-        "Send the order from an ok plan_order result as a real IOC transaction on Somnia testnet. Refuses an unknown, expired, already-used or stale plan (the book moved past its limit) and re-checks the daily cap. Returns the tx hash, fill and the position read back from chain. If the exchange itself refuses, the result says refused_by \"exchange\" with the reason in plain words.",
+        "Send the order from an ok plan_order result as a real IOC transaction on Somnia testnet. Refuses an unknown, expired, already-used or stale plan (the book moved past its limit, or the position changed), re-checks the policy, and re-runs the liquidation and margin previews on live state (refusals: minLiquidationDistancePct, liquidationUnknown, marginUnknown, voucherBlocked, margin). The limit price is re-derived from the live touch and maxSlippagePct and only ever tightens. Returns the tx hash, fill and the position read back from chain. If the exchange itself refuses, the result says refused_by \"exchange\" with the reason in plain words.",
       inputSchema: { plan_id: z.string().regex(/^plan_[0-9a-f]{12}$/).describe("plan_id from plan_order") },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
