@@ -1,0 +1,139 @@
+{
+  "tool": "account",
+  "args": {},
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "account": "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b",
+    "sttForGas": 45.1673,
+    "collateralUsdso": {
+      "equity": 49.478239,
+      "unlocked": 49.478239,
+      "lockedAsMargin": 0,
+      "withdrawable": 49.478239
+    },
+    "marginStatus": "Healthy",
+    "marginRequirementsUsd": {
+      "initial": 0,
+      "maintenance": 0,
+      "closeOut": 0
+    },
+    "positions": [],
+    "pendingBrackets": [],
+    "policy": {
+      "maxNotionalUsd": 25,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20,
+      "maxSlippagePct": 1,
+      "planTtlSec": 60,
+      "ordersSentTodayUtc": 5,
+      "source": "defaults (no policy file)"
+    },
+    "asOfBlock": 31939466
+  }
+}
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "verdict": "ok",
+    "plan_id": "plan_4fde983f1ad1",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1",
+    "limitPrice": "102.73",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "101.69",
+      "ask": "101.72"
+    },
+    "markPrice": "101.5063278502735",
+    "notionalUsd": 10.273,
+    "positionNow": "0",
+    "positionAfter": "0.1",
+    "positionNotionalAfterUsd": 10.273,
+    "marginLockUsd": 0.636,
+    "projectedLeverageX": 0.2056,
+    "liquidationPrice": null,
+    "liquidationDistancePct": null,
+    "liquidationNote": "no reachable liquidation price at this size",
+    "exchangeMaxSize": "7.77",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 25,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_4fde983f1ad1 within 60s to send it"
+  }
+}
+{
+  "tool": "place_order",
+  "args": {
+    "plan_id": "plan_4fde983f1ad1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "ok": true,
+    "action": "open",
+    "plan_id": "plan_4fde983f1ad1",
+    "market": "SOL",
+    "side": "buy",
+    "direction": "long",
+    "size": "0.1",
+    "limitPrice": "102.71",
+    "planLimitPrice": "102.73",
+    "tx": "0xfbcd7e4fad67dfb41b8f5a86a7005ed41867a002ce2220ce184f36dbfae162f9",
+    "block": 31939484,
+    "status": "success",
+    "gasUsed": "771885",
+    "orderId": "3449541141783693720176",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0.1"
+  }
+}
+{
+  "tool": "close_position",
+  "args": {
+    "market": "SOL"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383)",
+    "ok": true,
+    "action": "close",
+    "market": "SOL",
+    "side": "sell",
+    "direction": "close long",
+    "size": "0.1",
+    "limitPrice": "100.68",
+    "positionBefore": "0.1",
+    "tx": "0x6534652f4919aea109a8129eeff7219f7b5f2f0f446a14884c158853941e9bcc",
+    "block": 31939491,
+    "status": "success",
+    "gasUsed": "1553292",
+    "orderId": "3449541141783693720177",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0"
+  }
+}
