@@ -1,9 +1,9 @@
 // Tries to provoke a REAL exchange refusal through the public MCP tools only: a policy with a
-// 0.01% (1 bp) slippage bound, the smallest that leaves any room above the touch, leaves almost no room, so if the book ticks away
-// between place_order's freshness check and mining, the IOC finds nothing to fill and the
+// 0.01% (1 bp) slippage bound (the smallest that leaves any room above the touch) leaves almost
+// no room, so if the book ticks away between place_order's freshness check and mining, the IOC finds nothing to fill and the
 // exchange reverts it. Nothing is faked: every attempt is plan_order -> place_order over stdio
 // to the real server; a filled attempt is closed again. Stops at the first exchange refusal.
-// Result 2026-10-24 (SOL, 12 attempts): all 12 filled, none refused, so the book did not move in the window (evidence/p3-tight-slippage-attempts-journal.jsonl).
+// Result 2026-10-24 (SOL, 12 attempts): all 12 filled and none was refused, so no natural exchange refusal occurred (evidence/p3-tight-slippage-attempts-journal.jsonl).
 //   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/exchange-refusal-via-mcp.mjs [market] [attempts]
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

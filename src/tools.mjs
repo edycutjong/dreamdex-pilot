@@ -17,12 +17,11 @@ const pendingStops = async (client, account) => client.listPerpStopOrders({ acco
 // The stops that protect this account on one registry: the indexer's pending list UNION the stop
 // ids this journal recorded when pilot armed them, each confirmed live and owned on chain. The
 // indexer can lag a just-armed bracket by seconds; the chain read cannot.
-const liveStops = async (deps, mk, indexed) => {
+const liveStops = async (deps, mk, indexed, rows = deps.journal.read()) => {
   const client = deps.client();
   const account = deps.account().toLowerCase();
   const reg = mk.stopRegistry.toLowerCase();
   const ids = new Set(indexed.filter((s) => String(s.registry).toLowerCase() === reg).map((s) => String(s.orderIdRaw)));
-  const rows = deps.journal.read();
   const cancelled = new Set(rows.filter((e) => e.kind === "cancel").flatMap((e) => (e.cancelledStops ?? []).map((c) => String(c.id))));
   for (const e of rows) {
     if (e.kind !== "bracket" || e.market !== mk.baseSymbol) continue;
@@ -72,9 +71,10 @@ export const accountInfo = async (deps) => {
   if (Array.isArray(stops)) {
     brackets = [];
     try {
+      const rows = deps.journal.read();
       for (const mk of markets) {
         if (!mk.stopRegistry) continue;
-        for (const s of await liveStops(deps, mk, stops))
+        for (const s of await liveStops(deps, mk, stops, rows))
           brackets.push({ id: s.id, market: mk.baseSymbol, closes: s.isBid ? "short (buys)" : "long (sells)", triggerPrice: fmt(s.triggerPrice), when: s.triggerOperator === 0 ? "mark >= trigger" : "mark <= trigger" });
       }
     } catch (e) {
@@ -104,15 +104,25 @@ const failTx = (deps, e, base) => {
   const txs = Array.isArray(e?.txHashes) ? e.txHashes : null;
   if (txs) base = { ...base, ...(txs.length ? { txsSeen: txs } : {}) };
   const tx = txs ? null : e?.txHash ?? null;
+  // A tx may already be out: a journal write that throws must not replace the outcome we return.
+  const journalIt = (row) => {
+    try {
+      deps.journal.append(row);
+      return {};
+    } catch (err) {
+      return { journalError: `the outcome could not be journaled: ${describeError(err)}` };
+    }
+  };
   if (isExchangeRefusal(e)) {
     const x = explainExchangeError(e);
-    deps.journal.append({ kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx || txs?.length ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base });
-    return { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, sent: tx || txs?.length ? true : "unknown", ...base };
+    const sent = tx || txs?.length ? true : "unknown";
+    const j = journalIt({ kind: "refusal", refused_by: "exchange", stage: "chain", sent, tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base });
+    return { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, sent, ...base, ...j };
   }
   const sent = tx || txs?.length ? true : e?.pilotNotSent ? false : "unknown";
   const error = describeError(e);
-  deps.journal.append({ kind: "error", sent, tx, error, ...base });
-  return { ok: false, error, sent, tx, next: sent === false ? "nothing was sent; fix the error and try again" : "send status unknown: call account to see what is on chain before trying again", ...base };
+  const j = journalIt({ kind: "error", sent, tx, error, ...base });
+  return { ok: false, error, sent, tx, next: sent === false ? "nothing was sent; fix the error and try again" : "send status unknown: call account to see what is on chain before trying again", ...base, ...j };
 };
 
 const refusePilot = (deps, base, rule, detail, next) => {
@@ -257,12 +267,13 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
   }
   const result = { ok: true, ...base, cancelledStops: [], cancelledOrders: [], txs: [] };
   const fail = [];
+  let journalRows;
   const success = (r) => (r.receipt?.status ?? "success") === "success";
   for (const mk of target) {
     if (!mk.stopRegistry) continue;
     let live;
     try {
-      live = await liveStops(deps, mk, indexed);
+      live = await liveStops(deps, mk, indexed, (journalRows ??= deps.journal.read()));
     } catch (e) {
       fail.push({ ok: false, market: mk.baseSymbol, stage: "read stops", error: describeError(e), sent: false });
       continue;

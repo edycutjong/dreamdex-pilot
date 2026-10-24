@@ -363,3 +363,27 @@ describe("stop ownership and failed reads (round 2)", () => {
     expect(reads).toBe(0);
   });
 });
+
+describe("journal failure after a send (round 3)", () => {
+  it("bracket still returns the outcome of a failed stop send when the journal write throws", async () => {
+    const { deps, state } = longSol();
+    state.stopError = Object.assign(new Error("rpc"), { name: "RpcError", txHashes: ["0x" + "a".repeat(64)] });
+    const real = deps.journal.append;
+    deps.journal.append = (e) => { if (e.kind === "error") throw new Error("disk full"); return real(e); };
+    const r = await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 });
+    expect(r).toMatchObject({ ok: false, sent: true, txsSeen: ["0x" + "a".repeat(64)] });
+    expect(r.journalError).toMatch(/disk full/);
+  });
+  it("cancel_all keeps the txs it already sent when a later journal write throws", async () => {
+    const { deps, state } = longSol();
+    state.stops = [{ orderIdRaw: "11", registry: SOL.stopRegistry }];
+    state.resting = [3n];
+    state.cancelOrdersError = Object.assign(new Error("x"), { name: "ContractRevertError", errorName: "NothingToClaim" });
+    const real = deps.journal.append;
+    deps.journal.append = (e) => { if (e.kind === "refusal") throw new Error("disk full"); return real(e); };
+    const r = await cancelAll(deps, { market: "SOL" });
+    expect(r.cancelledStops).toEqual([{ market: "SOL", id: "11" }]);
+    expect(r.txs).toHaveLength(1);
+    expect(r.failures[0].journalError).toMatch(/disk full/);
+  });
+});

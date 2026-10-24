@@ -1,4 +1,4 @@
-# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 0d18cec, journal times 2026-10-24T02:39:51.295Z 2026-10-24T02:40:11.561Z (accounts, order, bracket, cancel_all, close, 3 pilot refusals).
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 0d18cec, journal times 2026-10-24T02:39:51.295Z 2026-10-24T02:40:11.561Z (accounts, order, bracket, cancel_all, close, 4 pilot refusals).
 # Prompt: evidence/p3-prompt-cc.txt. journal rows: evidence/p3-mcp-run-cc-journal.jsonl (key from the shell env, never in the config).
 
 All five steps ran. The 0.1 SOL "recovery" plan in step 4 was itself refused, and I did not place anything for it.
