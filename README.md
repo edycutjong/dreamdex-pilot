@@ -6,7 +6,7 @@ An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it p
 
 Anyone who wants an AI agent (Claude Code, Codex CLI, any MCP client) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits.
 
-Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on and that the app shows as the Tokyo region, i.e. the bounty's "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
+Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on, which I took to be the bounty's "Somnia Tokyo testnet" (dreamDEX's testnet docs describe Hideki as the Tokyo region). Use a burner key, never a wallet that holds anything real.
 
 ## Tools
 
@@ -22,7 +22,7 @@ Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run 
 | `policy` | Shows your limits. Read-only: no tool can change them. |
 | `journal` | Reads the append-only journal of every plan, refusal and transaction. |
 
-Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. An invalid file stops the server's trading tools instead of silently falling back.
+Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `markets` and `journal` still work); it never silently falls back.
 
 ## Run it
 
@@ -90,12 +90,12 @@ And a refusal, with nothing sent: asked for $60 of SOL (pilot sized it at 0.57 S
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
 - `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
 - The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
-- Closing and cancelling reduce risk, so your policy limits never block them. A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
+- Closing and cancelling reduce risk, so your policy limits never block them (an unreadable policy file still stops `close_position`, see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
 
 ## Honest limits
 
 - Testnet only. Nothing here has run on mainnet.
-- Some reverted sends come back with the reason `unknown`: the SDK sometimes fails its own replay (an RPC `eth_call`) of the failed transaction, so pilot reports the revert as unknown rather than guessing a reason. How often varied from run to run.
+- If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.
 - Plans live in the server's memory only, so restarting the server drops them.
 
