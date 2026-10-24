@@ -266,8 +266,8 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
   return journalAfterSend(deps, action, { kind: action === "close" ? "close" : "order", sent: true, ...out }, out);
 };
 
-// Every journal write after deps.send went through this: a failed write must not hide the tx or
-// turn the answer into a thrown error, and an open that may have gone out still counts toward the cap.
+// Every journal write after deps.send goes through this (writes before the send need not): a failed
+// write must not hide the tx or become a thrown error, and an open that may have gone out still counts.
 const journalAfterSend = (deps, action, row, out) => {
   try {
     deps.journal.append(row);
@@ -297,7 +297,7 @@ export const placeOrder = async (deps, { plan_id }) => {
     throw e;
   }
   p.outcome = r.ok ? `it was sent as tx ${r.tx}`
-    : r.refused_by === "exchange" ? `the exchange refused it (${r.code})${r.tx ? `, tx ${r.tx}` : ", tx hash not captured"}`
+    : r.refused_by === "exchange" ? `the exchange refused it (${r.code})${r.tx ? `, tx ${r.tx}` : ", tx hash not captured: check the position before trying again"}`
     : r.refused_by === "pilot-policy" ? `an earlier place_order refused it (${r.rule}) and sent nothing`
     : r.sent === false ? `an earlier place_order stopped before sending (${r.error}); nothing was sent`
     : `its send status is unknown (${r.error})${r.tx ? `, tx ${r.tx}` : ""}; check the position before trying again`;
