@@ -1,6 +1,6 @@
 # Pilot
 
-An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it plans every order first, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
 
 ## Who it is for
 
@@ -15,7 +15,7 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 - **Limits the agent cannot edit.** They live in a file and no tool writes it (`policy` is read-only).
 - **The cap is on the position, not the order**, so small orders cannot stack past it (see the $60 refusal below).
 - **Checked twice.** The policy, the liquidation distance and the margin are checked when the order is planned and again, on live state, when it is sent. A plan is one-shot and expires (60 seconds by default).
-- **A next step, not just a no.** A refusal names the rule and the next safe action with a number ("reduce size to at most 0.04 SOL"), so the agent can correct itself.
+- **A next step, not just a no.** A refusal names the rule and a next safe action the agent can act on ("plan at least 0.1 SOL", "pick one of BTC, ETH, SOL"), and says so when no order fits.
 - **It carries over between sessions.** Limits and the journal live in `~/.pilot`, so every new agent session starts from the same limits, the daily order cap counts across sessions and restarts, and the journal grows into one record of everything your agents did there.
 
 ## Tools
@@ -23,7 +23,7 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 | Tool | What it does |
 |---|---|
 | `markets` | Lists the perp markets with mark price, max leverage, minimum size, lot and tick size, funding and open interest. |
-| `account` | Reads the account live: STT for gas, USDso collateral, margin status, open positions with entry, mark and unrealized PnL, pending brackets, policy headroom. |
+| `account` | Reads the account live: STT for gas, USDso collateral, margin status, open positions with entry, mark and unrealized PnL, pending brackets, your policy limits and today's order count. |
 | `plan_order` | Plans a market-taking (IOC) order without sending it: max size, margin, projected liquidation price, and a verdict against your policy. An ok plan gets a short-lived one-shot `plan_id`. |
 | `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan, re-checks the policy and re-runs the liquidation and margin previews on live state. The limit price is re-derived from the live book and your slippage limit, and can only tighten. A reused `plan_id` is told what became of it (sent, refused, or unknown). If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason. |
 | `close_position` | Closes the whole position in a market from the live on-chain size. Never blocked by policy. Says when a bracket on that market is still armed (it would act on your next position there) and when something else shrank the position mid-close so the close flipped it. |
@@ -93,7 +93,7 @@ From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on
 | long 0.1 SOL (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
 | close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
 
-And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked for $60 more (pilot sized it at 0.57 SOL). The order alone was $59, but the cap is on the position it leaves, so pilot answered "the position this order leaves would be $79.77 notional, above the $25 cap per market", next safe action "reduce size to at most 0.04 SOL" (rule `maxNotionalUsd`).
+And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked for $60 more (pilot sized it at 0.57 SOL). The order alone was $59, but the cap is on the position it leaves, so pilot answered "the position this order leaves would be $79.80 notional, above the $25 cap per market", next safe action "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room" (rule `maxNotionalUsd`). The agent planned nothing more. An earlier run offered "reduce size to at most 0.04 SOL" here, a size the exchange minimum rules out; `DEMO.md` shows both runs and the fix.
 
 ## Safety
 

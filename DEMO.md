@@ -5,7 +5,7 @@ the transaction status/block/gas column is re-read from the Somnia Hideki testne
 
 Order and close hashes link to their fills on dreamDEX's Hideki markets explorer (https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app). That explorer shows nothing for bracket, cancel and reverted transactions ("Nothing indexed for this transaction"), so those are checked by the RPC column only.
 
-Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl`, `p2-mcp-run-cc-3-journal.jsonl`, `p2-mcp-run-cc-4-journal.jsonl`, `p3-mcp-run-cc-journal.jsonl`, `p3-mcp-run-cc-2-journal.jsonl`, `p3-mcp-run-codex-journal.jsonl`, `p3-mcp-cli-client-journal.jsonl`, `p3-exchange-refusal-injected-journal.jsonl`, `p3-notes-journal.jsonl`
+Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl`, `p2-mcp-run-cc-3-journal.jsonl`, `p2-mcp-run-cc-4-journal.jsonl`, `p3-mcp-run-cc-journal.jsonl`, `p3-mcp-run-cc-2-journal.jsonl`, `p3-mcp-run-codex-journal.jsonl`, `p3-mcp-cli-client-journal.jsonl`, `p3-exchange-refusal-injected-journal.jsonl`, `p3-notes-journal.jsonl`, `p6-stacking-refusal-cc-journal.jsonl`
 
 Clients: cc = Claude Code (Anthropic); codex = Codex CLI (OpenAI, not Anthropic); mcp-cli-client = MCP Inspector CLI (read-only, no signing key); injected = in-process MCP client with the race injected; the tight-slippage attempts in the Notes = a scripted MCP stdio client (no LLM), counted in the Notes only
 
@@ -13,11 +13,11 @@ The summary counts the journals listed above; attempts described only in a note 
 
 ## Summary
 
-- Real orders opened through the MCP tools: **8**
-- Positions closed: **8**
+- Real orders opened through the MCP tools: **9**
+- Positions closed: **9**
 - Brackets armed (take-profit + stop-loss): **2**
 - Cancels that sent a transaction: **2**
-- Refusals by pilot's policy: **11** rows (**4** distinct rules); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)
+- Refusals by pilot's policy: **12** rows (**4** distinct rules); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)
 
 ## Orders
 
@@ -31,6 +31,7 @@ The summary counts the journals listed above; attempts described only in a note 
 | 2026-10-24T02:41:06.678Z | long 0.01 ETH (IOC, limit 2404.78), filled 0.01, position after 0.01 | [`0xb32fa03c6f42e611ed354789b70517f2d67c10971351b0ad165c09750afa3d62`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xb32fa03c6f42e611ed354789b70517f2d67c10971351b0ad165c09750afa3d62) | success @ block 31575899, 2468663 gas | p3-mcp-run-codex-journal.jsonl |
 | 2026-10-24T02:41:21.757Z | short 0.00031 BTC (IOC, limit 80209.4), filled 0.00031, position after -0.00031 | [`0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080) | success @ block 31576050, 2540719 gas | p3-mcp-run-codex-journal.jsonl |
 | 2026-10-24T02:51:05.622Z | long 0.2 SOL (IOC, limit 103.63), filled 0.2, position after 0.2 | [`0x95f3df2475c1d32803f5a0cd345b97e83fca67fa27d8492b7e70bbdf15ceaad2`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x95f3df2475c1d32803f5a0cd345b97e83fca67fa27d8492b7e70bbdf15ceaad2) | success @ block 31581886, 720715 gas | p3-mcp-run-cc-2-journal.jsonl |
+| 2026-10-24T04:09:52.424Z | long 0.2 SOL (IOC, limit 103.65), filled 0.2, position after 0.2 | [`0xcf43c87ba0289410d39cdd1c234fb635cdf668b38a05771e47654316b5f17b00`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xcf43c87ba0289410d39cdd1c234fb635cdf668b38a05771e47654316b5f17b00) | success @ block 31629121, 1645884 gas | p6-stacking-refusal-cc-journal.jsonl |
 
 ## Closes
 
@@ -44,6 +45,7 @@ The summary counts the journals listed above; attempts described only in a note 
 | 2026-10-24T02:41:09.020Z | close long 0.01 ETH (IOC, limit 2356.83), position after 0 | [`0x24242376128a7a48aba6143b23c89d348447f362ba56e8e9a6edd381b3272df1`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x24242376128a7a48aba6143b23c89d348447f362ba56e8e9a6edd381b3272df1) | success @ block 31575922, 1554627 gas | p3-mcp-run-codex-journal.jsonl |
 | 2026-10-24T02:41:24.347Z | close short 0.00031 BTC (IOC, limit 81831.7), position after 0 | [`0xc0b61e172fc9ad9940aeec271a9294450caed65668e8b8844acadeeeb9454113`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xc0b61e172fc9ad9940aeec271a9294450caed65668e8b8844acadeeeb9454113) | success @ block 31576075, 1945279 gas | p3-mcp-run-codex-journal.jsonl |
 | 2026-10-24T02:51:17.332Z | close long 0.2 SOL (IOC, limit 101.57), position after 0 | [`0x95361dc838ebad0b864ad106e0a5386aedb0fcafb1b649df5aeb6fc34a1620a0`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x95361dc838ebad0b864ad106e0a5386aedb0fcafb1b649df5aeb6fc34a1620a0) | success @ block 31582003, 1507206 gas | p3-mcp-run-cc-2-journal.jsonl |
+| 2026-10-24T04:09:56.687Z | close long 0.2 SOL (IOC, limit 101.56), position after 0 | [`0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5) | success @ block 31629180, 1528893 gas | p6-stacking-refusal-cc-journal.jsonl |
 
 ## Brackets
 
@@ -76,6 +78,7 @@ No transaction was sent for any of these. Counts are rows: some are scripted pro
 | 2026-10-24T02:51:09.903Z | plan | long 100 DOGE | allowedMarkets, minQuantity | DOGE is not on the allowed list (BTC, ETH, SOL) | pick one of BTC, ETH, SOL |
 | 2026-10-24T02:51:10.664Z | plan | long 0.57 SOL | maxNotionalUsd | the position this order leaves would be $79.79 notional, above the $25 cap per market | reduce size to at most 0.04 SOL |
 | 2026-10-24T02:51:10.768Z | plan | long 0.1 SOL | maxNotionalUsd | the position this order leaves would be $31.09 notional, above the $25 cap per market | reduce size to at most 0.04 SOL |
+| 2026-10-24T04:09:54.516Z | plan | long 0.57 SOL | maxNotionalUsd | the position this order leaves would be $79.80 notional, above the $25 cap per market | no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room |
 
 ## Refusals by the exchange (`refused_by: "exchange"`)
 
@@ -90,4 +93,5 @@ The order passed pilot's policy and was sent; the exchange reverted it and the r
 - 2026-10-24T02:18:19.265Z: Earlier exchange refusal, outside the tools: scripts/exchange-refusal-check.mjs sent one IOC buy 5% under the ask straight through pilot's sender (limit 97.41, ask 102.54); the exchange reverted it as ImmediateOrCancelNoFill, tx 0x44dc12314f770217cad88c6eee8a5d9895abd7aa4185e6ba922536d63415a40d (evidence/p2-exchange-refusal-2026-10-24T02-18-19-265Z.json).
 - 2026-10-24T02:43:59.819Z: Attempt to provoke a natural exchange refusal through the tools: with a 0.01% (1 bp) slippage bound, the smallest that leaves any room above the touch, scripts/exchange-refusal-via-mcp.mjs made 12 plan_order and 12 place_order calls on SOL over stdio MCP; 12 orders filled (each closed again: 12 closes) and 0 were refused by the exchange. No natural exchange refusal is recorded (evidence/p3-tight-slippage-attempts-journal.jsonl).
 - 2026-10-24T02:56:04.645Z: race injected by scripts/exchange-refusal-injected.mjs: the planned limit 103.69 was lowered 5% to 98.5 in the sender before sending, standing in for the book moving between place_order's freshness check and mining. The order was unfillable by construction; no natural race. Everything else is the real tool path.
+- 2026-10-24T04:09:54.516Z: A wrong next step, fixed: the 2026-10-24T02:40:00.158Z cap refusal (0.57 SOL on top of 0.2 held) answered "reduce size to at most 0.04 SOL", a size under the SOL minimum, and the agent's plan for 0.04 SOL was then refused on minQuantity ("plan at least 0.1 SOL"). plan_order now checks the room against the minimum; the same request on the fixed code (2026-10-24T04:09:54.516Z, 0.2 SOL held) answered "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room", and the agent planned nothing.
 

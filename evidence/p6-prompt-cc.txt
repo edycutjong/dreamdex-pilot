@@ -1,0 +1,7 @@
+You are driving a real dreamDEX perps account on Somnia testnet ONLY through the `pilot` MCP tools (no shell, no other tools). Do these steps in order and report what each tool returned, quoting tx hashes and refusal text exactly:
+1. account.
+2. plan_order: SOL long, size 0.2. If the verdict is ok, place_order with the plan_id.
+3. plan_order: SOL long, notional_usd 60 (expect a refusal; quote the rule, the detail and the next safe action exactly).
+4. Follow that next safe action if it names a size you can plan (plan it, do NOT place it); if it says no order fits, do not plan anything and say so.
+5. close_position for SOL, then account.
+Be concise. Never invent a number; copy tool output.

@@ -1,0 +1,19 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 41ec0f4, journal times 2026-10-24T04:09:48.653Z 2026-10-24T04:09:56.687Z (open 0.2 SOL, $60 more refused: no order fits under the cap, close).
+# Prompt: evidence/p6-prompt-cc.txt. journal rows: evidence/p6-stacking-refusal-cc-journal.jsonl (key from the shell env, never in the config).
+
+**1. account:** Account `0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b`. Equity was 49.519239 USDso, with no positions and no brackets. The policy was the defaults (no policy file): maxNotionalUsd 25, markets BTC, ETH and SOL, daily cap 20.
+
+**2. SOL long, size 0.2:**
+- **plan_order:** The verdict was `ok` with plan_id `plan_6deb44851da6`. The notional was 20.73 USD, the limit price 103.65, and `liquidationPrice` was null ("no reachable liquidation price at this size").
+- **place_order:** It succeeded. Tx `0xcf43c87ba0289410d39cdd1c234fb635cdf668b38a05771e47654316b5f17b00`, block 31629121, filled 0.2 of 0.2, positionAfter 0.2.
+
+**3. SOL long, notional_usd 60:** The verdict was `refused`, refused_by `pilot-policy`.
+- **Rule:** `maxNotionalUsd`
+- **Detail:** "the position this order leaves would be $79.80 notional, above the $25 cap per market"
+- **Next safe action:** "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room"
+
+**4.** The next safe action says no order fits, so I planned nothing.
+
+**5. close_position SOL:** It succeeded. Tx `0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5`, block 31629180, sold 0.2 at limit 101.56, positionAfter "0".
+
+**account (after):** Equity was 49.511239 USDso, with no positions and no brackets. `ordersSentTodayUtc` was 1. Equity is 0.008 USDso lower than at the start.
