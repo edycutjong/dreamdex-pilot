@@ -18,7 +18,7 @@ let bad = 0;
 for (const hash of hashes) {
   try {
     const r = await pc.getTransactionReceipt({ hash });
-    console.log(hash, r.status, r.blockNumber, r.from, r.gasUsed);
+    console.log(hash, r.status, r.blockNumber.toString(), r.from, r.gasUsed.toString());
   } catch (e) {
     bad++;
     console.log(hash, "NOT-FOUND", "-", "-", "-");

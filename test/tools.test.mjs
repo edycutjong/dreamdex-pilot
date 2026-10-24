@@ -164,3 +164,11 @@ describe("DEMO.md", () => {
     expect(md).toContain("2 stop(s) on SOL");
   });
 });
+
+describe("DEMO.md notes", () => {
+  it("prints a journal note (an injected race says so in the journal itself)", () => {
+    const md = renderDemo([{ at: "2026-10-24T05:00:00.000Z", kind: "note", text: "race injected by the demo script" }]);
+    expect(md).toContain("## Notes recorded in the journal");
+    expect(md).toContain("race injected by the demo script");
+  });
+});

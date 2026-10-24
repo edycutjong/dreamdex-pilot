@@ -21,6 +21,7 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   const brackets = by("bracket");
   const cancels = by("cancel").filter((e) => e.txs?.length);
   const refusals = by("refusal");
+  const notes = by("note");
   const byPilot = refusals.filter((e) => e.refused_by === "pilot-policy");
   const byExchange = refusals.filter((e) => e.refused_by === "exchange");
   const rc = (tx) => {
@@ -43,8 +44,8 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     for (const e of list) out.push(`| ${cell(e.at)} | ${cell(line(e))} | \`${e.tx ?? "-"}\` | ${cell(rc(e.tx))} |`);
     out.push("");
   };
-  tx(orders, "Orders", (e) => `${e.direction} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}`);
-  tx(closes, "Closes", (e) => `${e.direction} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), position after ${e.positionAfter}`);
+  tx(orders, "Orders", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}`);
+  tx(closes, "Closes", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), position after ${e.positionAfter}`);
   tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})`);
   if (cancels.length) {
     out.push("## Cancels", "", "| time (UTC) | what | tx | on chain (RPC re-fetch) |", "|---|---|---|---|");
@@ -64,8 +65,13 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     out.push("");
   }
   if (byExchange.length) {
-    out.push("## Refusals by the exchange (`refused_by: \"exchange\"`)", "", "The order passed pilot's policy, was sent, and the exchange reverted it. The reason is the decoded custom error.", "", "| time (UTC) | stage | order | error | reason | next safe action | tx |", "|---|---|---|---|---|---|---|");
+    out.push("## Refusals by the exchange (`refused_by: \"exchange\"`)", "", "The order passed pilot's policy, was sent, and the exchange reverted it. The reason is the decoded custom error. If a note at the end says the race was injected, the exchange saw a real order and refused it for real; only the price move that made it unfillable was staged.", "", "| time (UTC) | stage | order | error | reason | next safe action | tx |", "|---|---|---|---|---|---|---|");
     for (const e of byExchange) out.push(`${refusalLine(e)} \`${e.tx ?? "-"}\` (${cell(rc(e.tx))}) |`);
+    out.push("");
+  }
+  if (notes.length) {
+    out.push("## Notes recorded in the journal", "");
+    for (const e of notes) out.push(`- ${cell(e.at)}: ${e.text}`);
     out.push("");
   }
   return out.join("\n") + "\n";

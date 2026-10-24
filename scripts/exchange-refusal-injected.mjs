@@ -1,0 +1,32 @@
+// Records an EXCHANGE refusal through the MCP tools, with the race injected and said so. pilot's
+// freshness guard refuses a stale plan before sending, so a real "book moved" refusal is rare
+// (see exchange-refusal-via-mcp.mjs: 12 of 12 filled). Here the real server runs in-process
+// behind a real MCP client, plan_order and place_order are the real tools, and ONLY the sender
+// is wrapped: it lowers the limit price of the one order by 5% (what a book that ticked away
+// between check and mining looks like). The transaction, the revert, the decoded reason and the
+// journal row are all real. A "note" row in the journal says the race was injected.
+//   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/exchange-refusal-injected.mjs
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createServer } from "../src/server.mjs";
+import { readMarkets, createChain, accountAddress } from "../src/client.mjs";
+import { createJournal } from "../src/journal.mjs";
+import { loadPolicy } from "../src/policy.mjs";
+
+const journal = createJournal();
+const chain = createChain();
+const reader = readMarkets();
+const send = (order) => {
+  journal.append({ kind: "note", text: `race injected by scripts/exchange-refusal-injected.mjs: the limit price ${order.price} was lowered 5% in the sender, standing in for the book moving between place_order's freshness check and mining. Everything else is the real tool path.` });
+  return chain.send({ ...order, price: ((order.price * 95n) / 100n / 10_000_000_000_000_000n) * 10_000_000_000_000_000n });
+};
+const server = createServer({ client: () => reader.client, account: accountAddress, send, chain, journal, policy: () => loadPolicy() });
+const [a, b] = InMemoryTransport.createLinkedPair();
+const client = new Client({ name: "injected-race-demo", version: "0" });
+await Promise.all([server.connect(a), client.connect(b)]);
+const call = async (name, args) => JSON.parse((await client.callTool({ name, arguments: args })).content[0].text);
+const plan = await call("plan_order", { market: "SOL", side: "long", size: "0.1" });
+console.log("plan", plan.verdict, plan.plan_id);
+const placed = await call("place_order", { plan_id: plan.plan_id });
+console.log(JSON.stringify({ ok: placed.ok, refused_by: placed.refused_by, code: placed.code, reason: placed.reason, tx: placed.tx }, null, 1));
+process.exit(placed.refused_by === "exchange" ? 0 : 1);
