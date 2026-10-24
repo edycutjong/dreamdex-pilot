@@ -22,6 +22,8 @@ Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.exa
 
 ## Run it
 
+Needs Node 22 or newer.
+
 ```bash
 git clone https://github.com/edycutjong/dreamdex-pilot && cd dreamdex-pilot
 npm ci
@@ -56,6 +58,12 @@ npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
 npx @modelcontextprotocol/inspector --cli node "$PWD/bin/pilot.mjs" --method tools/list
 ```
 
+**No LLM, one real round trip** (plan → place → close over stdio; `--bracket` also arms a bracket and cancels it)
+
+```bash
+PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 --bracket
+```
+
 ## Receipts
 
 `node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
@@ -67,7 +75,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
 - `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
 - The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
-- Closing and cancelling reduce risk, so policy never blocks them.
+- Closing and cancelling reduce risk, so your policy limits never block them (a close is only refused when that side of the book is empty).
 
 ## License
 

@@ -317,6 +317,40 @@ describe("place_order", () => {
     expect(state.sends.at(-1).price).toBe(px(103.54));
     expect(kept.planLimitPrice).toBeUndefined();
   });
+  it("tightens a sell's limit upward only (a sell's worst price is the lowest it accepts)", async () => {
+    const { deps, state, policy } = makeDeps();
+    state.pos = sol(0.2); // a short that only reduces: stays under the cap
+    const a = await plan(deps, { side: "short" });
+    policy.maxSlippagePct = 0.1;
+    const r = await placeOrder(deps, { plan_id: a.plan_id });
+    expect(state.sends.at(-1).price).toBe(limitPrice({ isBid: false, bid: state.bid, ask: state.ask, tick: 10n ** 16n, slippagePct: 0.1 }));
+    expect(state.sends.at(-1).price > px(101.47)).toBe(true);
+    expect(r.planLimitPrice).toBe(a.limitPrice);
+  });
+  it("a reused plan_id names the real outcome: nothing sent (no key), or the exchange's refusal", async () => {
+    const { deps, state } = makeDeps();
+    const a = await plan(deps);
+    state.sendError = Object.assign(new Error("PILOT_PRIVATE_KEY is not set"), { pilotNotSent: true });
+    expect(await placeOrder(deps, { plan_id: a.plan_id })).toMatchObject({ ok: false, sent: false });
+    expect((await placeOrder(deps, { plan_id: a.plan_id })).reason).toMatch(/stopped before sending \(.*PILOT_PRIVATE_KEY.*\); nothing was sent/);
+    const b = await plan(deps);
+    state.sendError = new ContractRevertError({ errorName: "ImmediateOrCancelNoFill" });
+    await placeOrder(deps, { plan_id: b.plan_id });
+    expect((await placeOrder(deps, { plan_id: b.plan_id })).reason).toMatch(/the exchange refused it .*tx hash not captured/);
+  });
+  it("a journal write failing after an exchange refusal still answers with the refusal and counts toward the cap", async () => {
+    const { deps, state, policy } = makeDeps();
+    policy.dailyOrderCap = 1;
+    const journal = { ...deps.journal, append: (e) => { if (e.refused_by === "exchange") throw new Error("disk full"); return deps.journal.append(e); } };
+    const d = { ...deps, journal };
+    const a = await plan(d);
+    state.sendError = Object.assign(new ContractRevertError({ errorName: "ImmediateOrCancelNoFill" }), { txHash: "0xbeef" });
+    const r = await placeOrder(d, { plan_id: a.plan_id });
+    expect(r).toMatchObject({ ok: false, refused_by: "exchange", tx: "0xbeef" });
+    expect(r.journalError).toMatch(/disk full/);
+    state.sendError = null;
+    expect((await plan(d)).refusals.map((x) => x.rule)).toContain("dailyOrderCap");
+  });
   it("a live preview that throws at send time is a failed read: nothing sent", async () => {
     const { deps, state } = makeDeps();
     const { plan_id } = await plan(deps);

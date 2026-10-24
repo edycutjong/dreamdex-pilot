@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { appendFileSync } from "node:fs";
-import { accountInfo, bracket, cancelAll } from "../src/tools.mjs";
+import { accountInfo, armedBrackets, bracket, cancelAll } from "../src/tools.mjs";
 import { renderDemo, parseReceipts } from "../src/demo.mjs";
 import { makeDeps, px, sol, SOL } from "./fixtures.mjs";
 
@@ -111,6 +111,13 @@ describe("cancel_all", () => {
     expect(r.cancelledStops).toEqual([{ market: "SOL", id: "11" }, { market: "SOL", id: "12" }]);
     expect(state.cancelCalls[0]).toEqual(["stops", { registry: SOL.stopRegistry, orderIds: ["11", "12"], gas: 20_000_000n }]);
     expect(journal.read().at(-1)).toMatchObject({ kind: "cancel", sent: true });
+  });
+  it("armedBrackets answers none for a market without a stop registry instead of failing", async () => {
+    const { deps, state } = longSol();
+    stopsOn(state);
+    const bare = { ...deps.client(), listPerpMarkets: async () => [{ ...SOL, stopRegistry: undefined }] };
+    expect(await armedBrackets({ ...deps, client: () => bare }, "SOL")).toEqual([]);
+    expect((await armedBrackets(deps, "SOL")).map((x) => x.id)).toEqual(["11", "12"]);
   });
   it("a cancel that came back without a receipt is reported unconfirmed, never as done", async () => {
     const { deps, state } = longSol();

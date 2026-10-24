@@ -226,16 +226,15 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
     if (isExchangeRefusal(e)) {
       const x = explainExchangeError(e);
       // A revert without a captured hash still most likely went out: count it ("unknown").
-      deps.journal.append({ kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base });
-      return { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, ...base };
+      const row = { kind: "refusal", refused_by: "exchange", stage: "chain", sent: tx ? true : "unknown", tx, code: x.code, reason: x.reason, next: x.next, rawReason: e?.reason ?? null, ...base };
+      return journalAfterSend(deps, action, row, { ok: false, refused_by: "exchange", code: x.code, reason: x.reason, next: x.next, tx, ...base });
     }
     // Without a hash a tx may still have gone out (a timeout after broadcast): "unknown", which
     // the daily cap counts, unless the sender proved nothing was sent (e.g. no key configured).
     const sent = tx ? true : e?.pilotNotSent ? false : "unknown";
     const msg = describeError(e);
-    deps.journal.append({ kind: "error", sent, tx, error: msg, ...base });
     const next = sent === false ? "nothing was sent; fix the error and plan again" : "send status unknown: check the position (close_position reads it live) and the explorer before trying again";
-    return { ok: false, error: msg, sent, tx, next, ...base };
+    return journalAfterSend(deps, action, { kind: "error", sent, tx, error: msg, ...base }, { ok: false, error: msg, sent, tx, next, ...base });
   }
   // From here a real tx exists: nothing below may throw, and the row carries the tx hash.
   let filled = null;
@@ -264,11 +263,17 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
     gasUsed: res.receipt?.gasUsed?.toString?.() ?? null, orderId: res.orderId?.toString() ?? null,
     filled, requested: u.qty(raw.quantity), positionAfter, ...(readBack ? { readBack } : {}), ...(flipped ? { flipped } : {}),
   };
+  return journalAfterSend(deps, action, { kind: action === "close" ? "close" : "order", sent: true, ...out }, out);
+};
+
+// Every journal write after deps.send went through this: a failed write must not hide the tx or
+// turn the answer into a thrown error, and an open that may have gone out still counts toward the cap.
+const journalAfterSend = (deps, action, row, out) => {
   try {
-    deps.journal.append({ kind: action === "close" ? "close" : "order", sent: true, ...out });
+    deps.journal.append(row);
   } catch (e) {
-    out.journalError = `the order landed but the journal write failed: ${describeError(e)}`;
-    if (action === "open") inflight(deps).unjournaled.push(new Date(deps.now()).toISOString().slice(0, 10));
+    out.journalError = `the journal write failed after the send: ${describeError(e)}`;
+    if (action === "open" && row.sent !== false) inflight(deps).unjournaled.push(new Date(deps.now()).toISOString().slice(0, 10));
   }
   return out;
 };
@@ -288,13 +293,14 @@ export const placeOrder = async (deps, { plan_id }) => {
   try {
     r = await placeClaimed(deps, { plan_id, p, policy, s });
   } catch (e) {
-    p.outcome = `an earlier place_order failed before sending anything (${describeError(e)})`;
+    p.outcome = `an earlier place_order stopped with an error (${describeError(e)}); check the position before trying again`;
     throw e;
   }
   p.outcome = r.ok ? `it was sent as tx ${r.tx}`
-    : r.refused_by === "exchange" ? `it was sent and the exchange refused it (${r.code}${r.tx ? `, tx ${r.tx}` : ""})`
-    : r.sent === false || r.refused_by === "pilot-policy" ? `an earlier place_order refused it (${r.rule ?? "a read failed"}) and sent nothing`
-    : `its send status is unknown (${r.error}); check the position before trying again`;
+    : r.refused_by === "exchange" ? `the exchange refused it (${r.code})${r.tx ? `, tx ${r.tx}` : ", tx hash not captured"}`
+    : r.refused_by === "pilot-policy" ? `an earlier place_order refused it (${r.rule}) and sent nothing`
+    : r.sent === false ? `an earlier place_order stopped before sending (${r.error}); nothing was sent`
+    : `its send status is unknown (${r.error})${r.tx ? `, tx ${r.tx}` : ""}; check the position before trying again`;
   return r;
 };
 
