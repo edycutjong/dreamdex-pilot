@@ -4,8 +4,8 @@
 // --bracket it also arms a bracket before the close (close_position then reports it still armed)
 // and removes it with cancel_all afterwards. With --bad-policy-close it opens under a valid policy
 // file (a temp one, defaults) and makes that file invalid just before the close: close_position
-// must still close, and say so in policyUnreadable.
-//   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/roundtrip-via-mcp.mjs [market] [size] [--bracket] [--bad-policy-close]
+// must still close, and say so in policyUnreadable. --short opens a short instead of a long.
+//   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/roundtrip-via-mcp.mjs [market] [size] [--short] [--bracket] [--bad-policy-close]
 import { fileURLToPath } from "node:url";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,6 +16,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 const args = process.argv.slice(2);
 const withBracket = args.includes("--bracket");
 const badPolicyClose = args.includes("--bad-policy-close");
+const side = args.includes("--short") ? "short" : "long";
 const [market = "SOL", size = "0.1"] = args.filter((a) => !a.startsWith("--"));
 const policyFile = badPolicyClose ? join(mkdtempSync(join(tmpdir(), "pilot-policy-")), "policy.json") : null;
 if (policyFile) writeFileSync(policyFile, "{}\n"); // valid: every key at its default
@@ -36,7 +37,7 @@ const call = async (name, args) => {
   return body;
 };
 try {
-  const plan = await call("plan_order", { market, side: "long", size });
+  const plan = await call("plan_order", { market, side, size });
   if (plan.verdict !== "ok") process.exitCode = 1;
   else {
     const placed = await call("place_order", { plan_id: plan.plan_id });

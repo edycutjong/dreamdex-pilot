@@ -63,7 +63,7 @@ const newPlanId = () => `plan_${randomBytes(6).toString("hex")}`;
 // what became of it (expired, sent, refused) instead of "no plan"; then it is forgotten.
 export const PLAN_MEMORY_MS = 10 * 60_000;
 
-// Signed exposure in a market after an order, as USD notional at the order's limit price.
+// Signed exposure in a market after an order, as USD notional at `price`.
 const exposureUsd = (u, posSize, signedQty, price, baseDecimals) => u.usd(notionalRaw(abs(posSize + signedQty), price, baseDecimals));
 
 export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
@@ -85,13 +85,17 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
     return { verdict: "refused", market: mk.baseSymbol, side, refusals: [{ rule: "emptyBook", detail: `no ${isBid ? "asks" : "bids"} on the ${mk.baseSymbol} book to fill against`, next: "try later or another market" }], journaled: row.at };
   }
   const price = limitPrice({ isBid, ...touch, tick, slippagePct: policy.maxSlippagePct });
+  // Notional (the cap, notional_usd sizing) is valued at the highest price the order can fill at:
+  // a buy pays at most its limit, but a sell fills at the bids from the top bid down to its limit,
+  // so at its limit a short would pass the cap and then fill above it.
+  const capPx = isBid || touch.bid < price ? price : touch.bid;
 
   let quantity;
   if (size != null) quantity = floorTo(parseUnits(String(size), mk.baseDecimals), lot);
   // toFixed: a tiny number must not reach parseUnits as "1e-7".
-  else quantity = floorTo((parseUnits(Number(notionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
+  else quantity = floorTo((parseUnits(Number(notionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / capPx, lot);
 
-  const capQty = floorTo((parseUnits(Number(policy.maxNotionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
+  const capQty = floorTo((parseUnits(Number(policy.maxNotionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / capPx, lot);
   // `leaning` > 0: the position already leans the order's way, so reducing it is what frees room.
   const policyFacts = (dist, notional, room = capQty, leaning = 0n) => ({
     market: mk.baseSymbol,
@@ -108,7 +112,7 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   // throw, so refuse here, before any preview, and still name every policy rule it breaks.
   if (quantity < minQ) {
     const refusals = [
-      ...evaluate(policy, policyFacts(null, u.usd(notionalRaw(quantity, price, mk.baseDecimals)))),
+      ...evaluate(policy, policyFacts(null, u.usd(notionalRaw(quantity, capPx, mk.baseDecimals)))),
       { rule: "minQuantity", detail: `size ${u.qty(quantity)} ${mk.baseSymbol} (after rounding to the ${u.qty(lot)} lot) is below the ${mk.baseSymbol} minimum ${u.qty(minQ)}`, next: `plan at least ${u.qty(minQ)} ${mk.baseSymbol}` },
     ];
     const human = { market: mk.baseSymbol, side, size: u.qty(quantity), requestedSize: size ?? null, limitPrice: u.px(price), minSize: u.qty(minQ), lotSize: u.qty(lot) };
@@ -124,11 +128,11 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
     client.getPerpPosition(ref),
   ]);
 
-  const notional = u.usd(notionalRaw(quantity, price, mk.baseDecimals));
+  const notional = u.usd(notionalRaw(quantity, capPx, mk.baseDecimals));
   // The notional cap is on the position this order leaves, not on the order alone: twenty $25
   // orders must not stack into a $500 position. A reducing order shrinks exposure.
   const signedQty = isBid ? quantity : -quantity;
-  const exposure = exposureUsd(u, pos.size, signedQty, price, mk.baseDecimals);
+  const exposure = exposureUsd(u, pos.size, signedQty, capPx, mk.baseDecimals);
   const sameSide = (isBid ? pos.size : -pos.size); // > 0: the position already leans this way
   const markRaw = liq?.markPrice ?? margin?.markPrice ?? mk.markPrice;
   const mark = markRaw == null ? 0n : BigInt(markRaw);
@@ -352,8 +356,10 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
     if (pos.size !== raw.positionSize)
       return refuse(deps, "stalePlan", `the ${raw.symbol} position changed from ${u.qty(raw.positionSize)} to ${u.qty(pos.size)} since the plan`, "call plan_order again", { plan_id });
     // The position may have changed since the plan (another client, a liquidation): the
-    // exposure cap is checked against the live one.
-    const exposure = exposureUsd(u, pos.size, raw.isBid ? raw.quantity : -raw.quantity, raw.price, raw.baseDecimals);
+    // exposure cap is checked against the live one, at the highest price the order can fill at
+    // (a sell: the live top bid, which can have risen since the plan; a buy: its limit).
+    const capPx = raw.isBid || touch.bid < raw.price ? raw.price : touch.bid;
+    const exposure = exposureUsd(u, pos.size, raw.isBid ? raw.quantity : -raw.quantity, capPx, raw.baseDecimals);
     if (exposure > policy.maxNotionalUsd)
       return refuse(deps, "maxNotionalUsd", `the live position makes this order's resulting notional $${exposure.toFixed(2)}, above the $${policy.maxNotionalUsd} cap`, "plan again against the current position (close_position always works)", { plan_id });
     // The plan's liquidation and margin previews are re-run on live state, read in parallel with

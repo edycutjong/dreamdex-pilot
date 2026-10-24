@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { ContractRevertError } from "@somnia-chain/markets-sdk";
 import { planOrder, placeOrder, closePosition, limitPrice, liquidationDistancePct, GAS, IOC, PLAN_MEMORY_MS } from "../src/trader.mjs";
 import { makeDeps, px, sol } from "./fixtures.mjs";
+import { DEFAULT_POLICY } from "../src/policy.mjs";
 
 const plan = (deps, a = {}) => planOrder(deps, { market: "SOL", side: "long", size: "0.1", ...a });
 
@@ -20,6 +21,18 @@ describe("money math", () => {
 });
 
 describe("plan_order", () => {
+  // A sell fills at the bids, from the top bid down to its limit: its limit understates the notional.
+  const cap = (usd) => () => ({ ...DEFAULT_POLICY, maxNotionalUsd: usd, source: "test" });
+  it("checks a short against the cap at the top bid, the highest price it can fill at, not at its lower limit", async () => {
+    const { deps } = makeDeps({ policy: cap(24.5) });
+    // 0.24 SOL: $24.36 at the 101.48 limit (under $24.5), $24.60 at the 102.5 top bid (over)
+    const r = await plan(deps, { side: "short", size: "0.24" });
+    expect(r).toMatchObject({ verdict: "refused", limitPrice: "101.48", positionNotionalAfterUsd: 24.6 });
+    expect(r.refusals.map((x) => x.rule)).toEqual(["maxNotionalUsd"]);
+    expect(r.refusals[0].next).toBe("reduce size to at most 0.23 SOL");
+    // a long is still checked at its own limit, the most it can pay
+    expect(await plan(makeDeps({ policy: cap(24.9) }).deps, { side: "long", size: "0.24" })).toMatchObject({ verdict: "ok", positionNotionalAfterUsd: 24.8496 });
+  });
   it("returns a one-shot plan with the numbers a human needs", async () => {
     const { deps, journal } = makeDeps();
     const r = await plan(deps);
@@ -98,7 +111,7 @@ describe("plan_order", () => {
     state.pos = sol(0.2);
     const r = await plan(deps, { side: "short" });
     expect(r.verdict).toBe("ok");
-    expect(r).toMatchObject({ positionAfter: "0.1", positionNotionalAfterUsd: 10.148 });
+    expect(r).toMatchObject({ positionAfter: "0.1", positionNotionalAfterUsd: 10.25 }); // valued at the 102.5 top bid a sell can fill at
   });
   it("sizes a tiny notional without parse errors and refuses it as below minimum", async () => {
     const { deps } = makeDeps();
@@ -156,6 +169,19 @@ describe("plan_order", () => {
 });
 
 describe("place_order", () => {
+  it("re-checks a short against the cap at the live top bid: a bid that rose since the plan can push it over", async () => {
+    const { deps, state } = makeDeps({ policy: () => ({ ...DEFAULT_POLICY, maxNotionalUsd: 24.5, source: "test" }) });
+    state.bid = px(100);
+    state.ask = px(100.02);
+    const p = await plan(deps, { side: "short", size: "0.24" }); // $24.00 at the 100 bid
+    expect(p.verdict).toBe("ok");
+    state.bid = px(102.5); // the bid rose: still fillable, but the short now fills at up to 102.5
+    state.ask = px(102.52);
+    const r = await placeOrder(deps, { plan_id: p.plan_id });
+    expect(r).toMatchObject({ ok: false, refused_by: "pilot-policy", rule: "maxNotionalUsd" });
+    expect(r.refusals[0].detail).toMatch(/\$24\.60, above the \$24\.5 cap/);
+    expect(state.sends).toHaveLength(0);
+  });
   it("sends an IOC with the safe gas limit and reads the position back", async () => {
     const { deps, state, journal } = makeDeps();
     const { plan_id } = await plan(deps);
