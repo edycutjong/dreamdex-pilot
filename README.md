@@ -76,12 +76,12 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 
 ## Demo excerpt
 
-From [`DEMO.md`](DEMO.md), all re-read from the RPC. A real order and its close, driven by Claude Code:
+From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer. A real order and its close, driven by Claude Code:
 
 | what | tx | on chain |
 |---|---|---|
-| long 0.1 SOL (IOC), filled 0.1 | `0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56` | success @ block 31569787 |
-| close long 0.1 SOL, position after 0 | `0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472` | success @ block 31569804 |
+| long 0.1 SOL (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
+| close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
 
 And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked for $60 more (pilot sized it at 0.57 SOL). The order alone was $59, but the cap is on the position it leaves, so pilot answered "the position this order leaves would be $79.77 notional, above the $25 cap per market", next safe action "reduce size to at most 0.04 SOL" (rule `maxNotionalUsd`).
 

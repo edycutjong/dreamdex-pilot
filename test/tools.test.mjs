@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { appendFileSync } from "node:fs";
 import { accountInfo, armedBrackets, bracket, cancelAll } from "../src/tools.mjs";
-import { renderDemo, parseReceipts } from "../src/demo.mjs";
+import { renderDemo, parseReceipts, EXPLORER } from "../src/demo.mjs";
 import { makeDeps, px, sol, SOL } from "./fixtures.mjs";
 
 const longSol = () => { const t = makeDeps(); t.state.pos = sol(0.3); return t; };
@@ -287,11 +287,22 @@ describe("DEMO.md", () => {
     const md = renderDemo(rows, { receipts, sources: ["j.jsonl"] });
     expect(md).toMatch(/Real orders opened through the MCP tools: \*\*1\*\*/);
     expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\* rows \(\*\*1\*\* distinct rules\); refusals by the exchange: \*\*1\*\*/i);
-    expect(md).toContain(`\`0x${"1".repeat(64)}\` | success @ block 100, 1500000 gas`);
+    expect(md).toContain(`[\`0x${"1".repeat(64)}\`](${EXPLORER}/tx/0x${"1".repeat(64)}) | success @ block 100, 1500000 gas`);
     expect(md).toContain("ImmediateOrCancelNoFill");
     expect(md).toContain("reverted @ block 102");
     expect(md).toContain("DOGE is not on the allowed list");
   });
+  it("links order and close hashes to the Hideki markets explorer, not reverted ones, and only real hashes", () => {
+    const md = renderDemo(rows, { receipts });
+    expect(md).toContain(`(${EXPLORER}/tx/0x${"2".repeat(64)})`);
+    expect(md).not.toContain(`/tx/0x${"3".repeat(64)}`);
+    expect(md).toContain("checked by the RPC column only");
+    const plain = renderDemo(rows, { receipts, explorer: null });
+    expect(plain).toContain(`| \`0x${"1".repeat(64)}\` |`);
+    expect(plain).not.toContain("/tx/");
+    expect(renderDemo([{ ...rows[0], tx: "unknown" }])).toContain("| `unknown` |");
+  });
+
   it("marks a tx that was not re-fetched instead of inventing a receipt", () => {
     expect(renderDemo(rows)).toContain("not re-fetched");
   });
