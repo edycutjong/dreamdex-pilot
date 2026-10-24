@@ -1,0 +1,31 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 459a78b (after QA round 2), 2026-10-24 ~02:28 UTC.
+# Same mcp config as evidence/p2-mcp-run-cc.txt (key from the shell env, never in the config).
+# prompt: "You are trading on dreamDEX testnet through the pilot MCP tools. 1) Plan a long of 0.1 SOL; report limit price, notional, position after and liquidation price. 2) If the plan verdict is ok, place it with its plan_id. 3) Close the SOL position. 4) Show the last 3 journal entries. Report every tx hash in full. Do not retry a refused order."
+# journal rows: evidence/p2-mcp-run-cc-3-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
+
+All four steps are done: the 0.1 SOL long opened, filled in full and closed, and the SOL position is back to 0.
+
+**1. Plan**
+- Limit price: 103.57 (IOC, touch 102.51 / 102.55)
+- Notional: $10.357
+- Position after: 0.1 SOL, which is $10.357 notional
+- Liquidation price: none. The planner reported "no reachable liquidation price at this size" (projected leverage 0.207x).
+- Verdict: ok. It stayed within the policy limits: $25 max notional, 15% minimum liquidation distance and 20 orders a day.
+
+**2. Open**
+- Placed with `plan_89db9397068d`. It filled 0.1 of 0.1 at block 31568114.
+- Tx: `0x380383587d6c952cee836ae88a6c9d94875d88aab7da27e5dd46627f29d6eda5`
+
+**3. Close**
+- Sold 0.1 SOL with a limit of 101.49. It filled 0.1 of 0.1 at block 31568132.
+- Tx: `0xb3b82eda59a60db6e73c5954699f7afad807a48597c62521bb15e9a0416108ce`
+
+**4. Last 3 journal entries**
+
+| Time (UTC) | Kind | Detail | Tx |
+|---|---|---|---|
+| 02:28:06 | plan | SOL long 0.1, limit 103.57, notional $10.357 | none |
+| 02:28:07 | order | open long, filled 0.1, position after 0.1 | `0x380383587d6c952cee836ae88a6c9d94875d88aab7da27e5dd46627f29d6eda5` |
+| 02:28:09 | close | close long, filled 0.1, position after 0 | `0xb3b82eda59a60db6e73c5954699f7afad807a48597c62521bb15e9a0416108ce` |
+
+Nothing was refused, so no retries were needed.
