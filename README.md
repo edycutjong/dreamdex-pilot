@@ -49,7 +49,7 @@ args = ["/path/to/dreamdex-pilot/bin/pilot.mjs"]
 env_vars = ["PILOT_PRIVATE_KEY"]
 ```
 
-**MCP Inspector** (UI mode keeps the session, so `plan_order` then `place_order` works; its CLI mode starts a new server per call, so a `plan_id` does not survive to the next call)
+**MCP Inspector** (UI mode runs one server process for the session; its CLI mode starts a new server for every call, so a `plan_id` from `plan_order` does not exist in the next call, see `evidence/p3-mcp-cli-client.txt`)
 
 ```bash
 npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
