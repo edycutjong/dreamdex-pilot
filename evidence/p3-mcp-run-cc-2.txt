@@ -1,0 +1,31 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD f91a43b (after QA round 1 fixes), journal times 2026-10-24T02:51:03.634Z 2026-10-24T02:51:17.332Z: order, bracket, cancel_all, close, 3 pilot refusals.
+# Prompt: evidence/p3-prompt-cc.txt. journal rows: evidence/p3-mcp-run-cc-2-journal.jsonl (key from the shell env, never in the config).
+
+All five steps ran. The last part of step 4 didn't go as you expected: the 0.1 SOL "recovery" plan was refused too, so I have no ok plan to show.
+
+**1. account:** Equity was 49.533239 USDso, margin Healthy, no positions, no brackets. Policy was the defaults: max notional $25 per market, BTC/ETH/SOL allowed, daily cap 20.
+
+**2. SOL long 0.2:**
+- **Plan:** The verdict was ok (`plan_fc185915e132`), with notional $20.726.
+- **Liquidation line:** `liquidationPrice: null`, `liquidationDistancePct: null`, and the note "no reachable liquidation price at this size". The policy minimum distance is 15%.
+- **Order:** `place_order` succeeded, tx `0x95f3df2475c1d32803f5a0cd345b97e83fca67fa27d8492b7e70bbdf15ceaad2`, block 31581886, filled 0.2 of 0.2.
+
+**3. bracket on SOL (TP 3%, SL 2%):**
+- **Bracket:** tx `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f`. Entry was 102.6, take-profit trigger 105.55, stop-loss trigger 100.43, and 0.3 STT is held.
+- **Account after:** It showed both pending brackets: stop id 756316507022091618392 (mark <= 100.43) and take-profit id 3154393236604333328471 (mark >= 105.55). The position was 0.2 SOL with unrealized PnL of -0.0240471967992.
+
+**4. Refusals:**
+- **DOGE long 100:** Refused by pilot-policy on two rules.
+  - `allowedMarkets`: "DOGE is not on the allowed list (BTC, ETH, SOL)". Next: "pick one of BTC, ETH, SOL".
+  - `minQuantity`: size 100 is below the DOGE minimum of 120. Next: "plan at least 120 DOGE".
+- **SOL long $60 notional:** The tool sized it at 0.57 SOL and refused on `maxNotionalUsd`: "the position this order leaves would be $79.79 notional, above the $25 cap per market". Next action: "reduce size to at most 0.04 SOL".
+- **SOL long 0.1 (recovery):**
+  - **Result:** Refused on `maxNotionalUsd`: "the position this order leaves would be $31.09 notional, above the $25 cap per market". Next: "reduce size to at most 0.04 SOL".
+  - **Cause:** The open 0.2 SOL position counts toward the cap. I did not place it.
+  - **Not done:** I didn't re-plan after the close or try another market, since you asked for a 0.1 SOL plan. Re-planning once the position is flat should return an ok plan.
+
+**5. Teardown:**
+- **cancel_all SOL:** Cancelled both stops, tx `0x60b69767239c2d5647d7810535d556ebaddfb69c7423384a761658f98579cf31`.
+- **close_position SOL:** Sold 0.2, tx `0x95361dc838ebad0b864ad106e0a5386aedb0fcafb1b649df5aeb6fc34a1620a0`, block 31582003, position after 0.
+- **account:** No positions, no brackets, equity 49.531239 USDso, locked margin 0, `ordersSentTodayUtc` 1.
+- **journal (limit 12):** It returned 8 entries (total 8), in this order: plan, order, bracket, refusal (DOGE), refusal (SOL 0.57), refusal (SOL 0.1), cancel, close. The tx hashes match those above.
