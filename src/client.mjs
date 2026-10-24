@@ -16,8 +16,8 @@ const key = () => {
 export const readMarkets = () =>
   new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES });
 
-export const writeMarkets = () =>
-  new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES, privateKey: key() });
+export const writeMarkets = (opts = {}) =>
+  new SomniaMarkets({ chain: CHAIN, indexerUrl: INDEXER_URL, addresses: SOMNIA_HIDEKI_TESTNET_ADDRESSES, privateKey: key(), ...opts });
 
 // The account address is derived from the key; the key itself never leaves this function.
 export const accountAddress = () => process.env.PILOT_ACCOUNT ?? privateKeyToAccount(key()).address;
