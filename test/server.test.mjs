@@ -91,6 +91,14 @@ describe("MCP server", () => {
     const r = await c.callTool({ name: "place_order", arguments: { plan_id: "anything" } });
     expect(r.isError).toBe(true);
   });
+  it("journals an unexpected plan_order failure", async () => {
+    const { deps } = makeDeps();
+    const broken = { ...deps.client(), getBookTopsOnchain: async () => { throw Object.assign(new Error("socket closed"), { name: "RpcError" }); } };
+    const c = await connectDeps({ ...deps, client: () => broken });
+    const r = await c.callTool({ name: "plan_order", arguments: { market: "SOL", side: "long", size: "0.1" } });
+    expect(r.isError).toBe(true);
+    expect(deps.journal.read().at(-1)).toMatchObject({ kind: "error", stage: "plan", sent: false, market: "SOL" });
+  });
 });
 
 const connectDeps = async (deps) => {

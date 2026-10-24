@@ -49,7 +49,7 @@ describe("plan_order", () => {
     expect(journal.read().at(-1)).toMatchObject({ kind: "refusal", refused_by: "pilot-policy", stage: "plan" });
     return r.refusals.map((x) => x.rule);
   };
-  it("refuses a market off the allowlist", async () => expect(await refused(null, { market: "DOGE" })).toEqual(["allowedMarkets"]));
+  it("refuses a market off the allowlist", async () => expect(await refused((s, d) => { d.policy().allowedMarkets = ["BTC"]; })).toEqual(["allowedMarkets"]));
   it("refuses notional above the cap and suggests the largest size under it", async () => {
     const { deps } = makeDeps();
     const r = await plan(deps, { size: "0.5" });
@@ -71,6 +71,15 @@ describe("plan_order", () => {
   it("refuses when the margin preview is not priceable", async () =>
     expect(await refused((s) => { s.margin = { priceable: false }; })).toEqual(["marginUnknown"]));
   it("refuses below the market minimum", async () => expect(await refused(null, { size: "0.05" })).toEqual(["minQuantity"]));
+  it("refuses a size that rounds to 0 before any preview, naming every broken rule (real run: 0.1 DOGE)", async () => {
+    const { deps, previews, journal } = makeDeps();
+    const r = await plan(deps, { market: "DOGE", size: "0.1" });
+    expect(r.verdict).toBe("refused");
+    expect(r.refusals.map((x) => x.rule)).toEqual(["allowedMarkets", "minQuantity"]);
+    expect(r).toMatchObject({ size: "0", minSize: "120", lotSize: "10" });
+    expect(previews).toHaveLength(0);
+    expect(journal.read().at(-1)).toMatchObject({ kind: "refusal", refused_by: "pilot-policy", rules: ["allowedMarkets", "minQuantity"] });
+  });
   it("refuses at the daily order cap", async () =>
     expect(await refused((s, d) => { for (let i = 0; i < 20; i++) d.journal.append({ kind: "order", sent: true, action: "open", at: new Date(s.clock).toISOString() }); })).toEqual(["dailyOrderCap"]));
   it("refuses on an empty book", async () => {

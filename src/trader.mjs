@@ -83,6 +83,26 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   if (size != null) quantity = floorTo(parseUnits(String(size), mk.baseDecimals), lot);
   else quantity = floorTo((parseUnits(String(notionalUsd), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
 
+  const capQty = floorTo((parseUnits(String(policy.maxNotionalUsd), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
+  const policyFacts = (dist) => ({
+    market: mk.baseSymbol,
+    notionalUsd: u.usd(notionalRaw(quantity, price, mk.baseDecimals)),
+    maxSizeUnderCap: `${u.qty(capQty)} ${mk.baseSymbol}`,
+    liquidationDistancePct: dist,
+    ordersToday: deps.journal.ordersToday(new Date(deps.now())),
+  });
+  // Below the market minimum (a size that floors to 0 on the lot grid included) the SDK previews
+  // throw, so refuse here, before any preview, and still name every policy rule it breaks.
+  if (quantity < minQ) {
+    const refusals = [
+      ...evaluate(policy, policyFacts(null)),
+      { rule: "minQuantity", detail: `size ${u.qty(quantity)} ${mk.baseSymbol} (after rounding to the ${u.qty(lot)} lot) is below the ${mk.baseSymbol} minimum ${u.qty(minQ)}`, next: `plan at least ${u.qty(minQ)} ${mk.baseSymbol}` },
+    ];
+    const human = { market: mk.baseSymbol, side, size: u.qty(quantity), requestedSize: size ?? null, limitPrice: u.px(price), minSize: u.qty(minQ), lotSize: u.qty(lot) };
+    const row = deps.journal.append({ kind: "refusal", refused_by: "pilot-policy", stage: "plan", action: "open", ...human, rules: refusals.map((r) => r.rule), refusals });
+    return { verdict: "refused", refused_by: "pilot-policy", ...human, refusals, policy: policySummary(policy), journaled: row.at };
+  }
+
   const ref = { pool: mk.poolAddress, marginBank: mk.marginBank, account };
   const [max, margin, liq] = await Promise.all([
     client.getMaxPerpOrderSize({ ...ref, isBid, price }),
@@ -94,23 +114,14 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const mark = BigInt(liq?.markPrice ?? margin?.markPrice ?? mk.markPrice);
   const liqPrice = liq?.priceable ? liq.projectedLiquidationPrice : null;
   const dist = liquidationDistancePct(liqPrice, mark);
-  const capQty = floorTo((parseUnits(String(policy.maxNotionalUsd), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
 
-  const refusals = evaluate(policy, {
-    market: mk.baseSymbol,
-    notionalUsd: notional,
-    maxSizeUnderCap: `${u.qty(capQty)} ${mk.baseSymbol}`,
-    liquidationDistancePct: dist,
-    ordersToday: deps.journal.ordersToday(new Date(deps.now())),
-  });
+  const refusals = evaluate(policy, policyFacts(dist));
   // A preview the chain could not price is unknown, not safe: never let it read as "no liquidation".
   if (!liq?.priceable)
     refusals.push({ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview for this order", next: "plan again shortly; check markets for a mark price" });
   if (!margin?.priceable)
     refusals.push({ rule: "marginUnknown", detail: "the exchange could not price a margin preview for this order", next: "plan again shortly" });
   // What the exchange itself would refuse, caught before a tx is sent.
-  if (quantity < minQ)
-    refusals.push({ rule: "minQuantity", detail: `size ${u.qty(quantity)} is below the ${mk.baseSymbol} minimum ${u.qty(minQ)}`, next: `plan at least ${u.qty(minQ)} ${mk.baseSymbol}` });
   // Report 006 (sieve): the docs' list of voucher-closed markets disagrees with the chain, so the
   // chain's own preview decides, never a hard-coded list.
   if (margin?.priceable && margin.voucherBlocked)

@@ -57,7 +57,13 @@ export const createServer = (deps) => {
     },
     guard("plan_order", async ({ market, side, size, notional_usd }) => {
       if ((size == null) === (notional_usd == null)) return fail("Give exactly one of size or notional_usd.");
-      return text({ network: NETWORK, ...(await planOrder(d, { market, side, size, notionalUsd: notional_usd })) });
+      try {
+        return text({ network: NETWORK, ...(await planOrder(d, { market, side, size, notionalUsd: notional_usd })) });
+      } catch (e) {
+        // An unexpected failure is journaled too (a plan never sends, so it never counts toward the cap).
+        if (!e?.pilotUser) d.journal.append({ kind: "error", stage: "plan", action: "open", sent: false, market, side, size: size ?? null, notionalUsd: notional_usd ?? null, error: describeError(e) });
+        throw e;
+      }
     }),
   );
 

@@ -16,7 +16,8 @@ const market = (sym, pool) => ({
   tickSize: (10n ** 16n).toString(), fundingRate: "0", fundingWindowSec: 28800, openInterest: "0",
 });
 export const SOL = market("SOL", "0xb483ec1fb34996638677c20ab087b16f1896fa53");
-export const DOGE = market("DOGE", "0x00000000000000000000000000000000000000d0");
+// DOGE as on chain 2026-10-24: 8 decimals, minimum 120, lot 10, ~$0.0788.
+export const DOGE = { ...market("DOGE", "0x00000000000000000000000000000000000000d0"), baseDecimals: 8, minQuantity: "12000000000", lotSize: "1000000000", markPrice: "78757972421000000" };
 
 export const makeDeps = (over = {}) => {
   const state = {
@@ -26,12 +27,14 @@ export const makeDeps = (over = {}) => {
     liq: { priceable: true, projectedLiquidationPrice: 0n, markPrice: px(102.51), projectedPositionLeverageBps: 2000n },
     sendError: null,
   };
+  const previews = [];
   const client = {
     listPerpMarkets: async () => [SOL, DOGE],
     getBookTopsOnchain: async ([{ poolAddress }]) => ({ tops: { [poolAddress]: { bestBid: state.bid, bestAsk: state.ask } } }),
+    // The real SDK throws on quantity 0 ("quantity must be > 0"); so does the stub.
     getMaxPerpOrderSize: async () => state.max,
-    previewPerpOrderMargin: async () => state.margin,
-    previewPerpLiquidationPrice: async () => state.liq,
+    previewPerpOrderMargin: async (a) => { if (a.quantity <= 0n) throw new Error("quantity must be > 0"); previews.push(a); return state.margin; },
+    previewPerpLiquidationPrice: async (a) => { if (a.quantity <= 0n) throw new Error("quantity must be > 0"); return state.liq; },
     getPerpPosition: async () => ({ size: state.pos, avgEntryPrice: 0n }),
   };
   const send = async (order) => {
@@ -46,5 +49,5 @@ export const makeDeps = (over = {}) => {
     client: () => client, account: () => "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b", send, journal,
     policy: () => policy, plans: new Map(), now: () => state.clock, ...over,
   };
-  return { deps, state, policy, journal };
+  return { deps, state, policy, journal, previews };
 };
