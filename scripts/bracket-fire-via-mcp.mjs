@@ -13,8 +13,10 @@ const transport = new StdioClientTransport({
 });
 const client = new Client({ name: "bracket-fire-via-mcp", version: "0" });
 await client.connect(transport);
+// Any tool error fails the run (exit 1).
 const call = async (name, args, quiet = false) => {
   const r = await client.callTool({ name, arguments: args });
+  if (r.isError) process.exitCode = 1;
   let body = r.content[0].text;
   try {
     body = JSON.parse(body);
@@ -50,7 +52,8 @@ try {
   }
   if (!fired) {
     console.log(JSON.stringify({ at: new Date().toISOString(), note: `no leg fired within ${minutes} minutes: closing and cancelling` }));
-    await call("close_position", { market });
+    const closed = await call("close_position", { market });
+    if (!closed.ok || closed.positionAfter !== "0") process.exitCode = 1; // not flat: the run failed
     await call("cancel_all", { market });
   }
   const t0 = Date.now();
