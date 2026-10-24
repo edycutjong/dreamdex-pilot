@@ -1,19 +1,35 @@
 # Pilot
 
-An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between the agent and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+
+```
+agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
+```
+
+## Demo excerpt
+
+From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer. A real order and its close, driven by Claude Code, and an order from a second client:
+
+| what | tx | on chain |
+|---|---|---|
+| long 0.1 SOL (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
+| close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
+| short 0.00031 BTC from Codex CLI (OpenAI); plan_order first showed liquidation at 234283.29, 189.78% from mark | [`0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080) | success @ block 31576050 |
+
+And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked for $60 more (pilot sized it at 0.57 SOL). The order alone was $59, but the cap is on the position it leaves, so pilot answered "the position this order leaves would be $79.80 notional, above the $25 cap per market", next safe action "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room" (rule `maxNotionalUsd`). The agent planned nothing more. An earlier run offered "reduce size to at most 0.04 SOL" here, a size the exchange minimum rules out; `DEMO.md` shows both runs and the fix.
 
 ## Who it is for
 
 Anyone who wants an AI agent (Claude Code, Codex CLI, any MCP client) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits.
 
-Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on, which I took to be the bounty's "Somnia Tokyo testnet" (dreamDEX's testnet docs describe Hideki as the Tokyo region). Use a burner key, never a wallet that holds anything real.
+Testnet only: Somnia Hideki (chain 50383). dreamDEX's [perps testnet docs](https://app.testnet.dreamdex.io/docs/developers/perps-testnet) say "Testnet perps run on the Hideki testnet chain, which the app shows as the Tokyo region", so this is the bounty's "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
 
 ## What pilot adds over handing the agent the SDK
 
-Give an agent the SDK and a key and it can send any order the exchange accepts. Pilot sits in between:
+Give an agent the SDK and a key and it can send any order the exchange accepts. A trading form shows a person the numbers; pilot makes an agent unable to ignore your limits:
 
 - **Limits the agent cannot edit.** They live in a file and no tool writes it (`policy` is read-only).
-- **The cap is on the position, not the order**, so small orders cannot stack past it (see the $60 refusal below).
+- **The cap is on the position, not the order**, so small orders cannot stack past it (see the $60 refusal above).
 - **Checked twice.** The policy, the liquidation distance and the margin are checked when the order is planned and again, on live state, when it is sent. A plan is one-shot and expires (60 seconds by default).
 - **A next step, not just a no.** A refusal names the rule and a next safe action the agent can act on ("plan at least 0.1 SOL", "pick one of BTC, ETH, SOL"), and says so when no order fits.
 - **It carries over between sessions.** Limits and the journal live in `~/.pilot`, so every new agent session starts from the same limits, the daily order cap counts across sessions and restarts, and the journal grows into one record of everything your agents did there.
@@ -32,7 +48,7 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 | `policy` | Shows your limits. Read-only: no tool can change them. |
 | `journal` | Reads the append-only journal of every plan, refusal and transaction. |
 
-Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `markets` and `journal` still work); it never silently falls back.
+Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `markets` and `journal` still work); it never silently falls back.
 
 ## Run it
 
@@ -50,6 +66,10 @@ The server reads the key from the environment of the process that starts it. Exp
 export PILOT_PRIVATE_KEY=0x...   # testnet burner key
 ```
 
+Never paste or screenshot the key, or a terminal where it is exported.
+
+Fund the burner before the first order: STT for gas (dreamDEX's docs: sign in at [app.testnet.dreamdex.io](https://app.testnet.dreamdex.io/perps), Link a Bot with the key's address, then Send it or Top up) and USDso collateral (or the docs' one-time 1,000 paper USDso credit; paper USDso opens positions only in its allowlisted markets, and `plan_order` refuses the others as `voucherBlocked`). `account` shows both balances.
+
 **Claude Code**
 
 ```bash
@@ -65,7 +85,7 @@ args = ["/path/to/dreamdex-pilot/bin/pilot.mjs"]
 env_vars = ["PILOT_PRIVATE_KEY"]
 ```
 
-**MCP Inspector** (UI mode runs one server process for the session; its CLI mode starts a new server for every call, so a `plan_id` from `plan_order` does not exist in the next call, see `evidence/p3-mcp-cli-client.txt`)
+**MCP Inspector** (place orders from UI mode; the CLI line is for one-shot calls, see Honest limits)
 
 ```bash
 npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
@@ -82,18 +102,9 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 
 `node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
 
+`node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share: counts, your latest fill on the explorer, and a link back here.
+
 One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
-
-## Demo excerpt
-
-From [`DEMO.md`](DEMO.md), all re-read from the RPC; each hash opens its fill on dreamDEX's Hideki markets explorer. A real order and its close, driven by Claude Code:
-
-| what | tx | on chain |
-|---|---|---|
-| long 0.1 SOL (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
-| close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
-
-And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked for $60 more (pilot sized it at 0.57 SOL). The order alone was $59, but the cap is on the position it leaves, so pilot answered "the position this order leaves would be $79.80 notional, above the $25 cap per market", next safe action "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room" (rule `maxNotionalUsd`). The agent planned nothing more. An earlier run offered "reduce size to at most 0.04 SOL" here, a size the exchange minimum rules out; `DEMO.md` shows both runs and the fix.
 
 ## Safety
 
@@ -108,6 +119,8 @@ And a refusal, with nothing sent: with 0.2 SOL already open, Claude Code asked f
 - If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.
 - Plans live in the server's memory only, so restarting the server drops them.
+- MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode keeps one server process while connected.
+- `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
 
 ## X posts
 

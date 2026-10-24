@@ -76,7 +76,9 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     const rule = e.rules?.join(", ") ?? e.code ?? "-";
     const why = e.reason ?? first?.detail ?? "-";
     const ask = e.size ?? e.requestedSize;
-    return `| ${cell(e.at)} | ${cell(e.stage)} | ${cell([e.side, ask, e.market].filter(Boolean).join(" "))} | ${cell(rule)} | ${cell(why)} | ${cell(e.next ?? first?.next)} |`;
+    // A place-stage refusal of a plan names only the plan_id: show that rather than an empty cell.
+    const what = [e.side, ask, e.market].filter(Boolean).join(" ") || (e.plan_id ? `plan ${e.plan_id}` : "-");
+    return `| ${cell(e.at)} | ${cell(e.stage)} | ${cell(what)} | ${cell(rule)} | ${cell(why)} | ${cell(e.next ?? first?.next)} |`;
   };
   if (byPilot.length) {
     out.push("## Refusals by pilot's policy (`refused_by: \"pilot-policy\"`)", "", "No transaction was sent for any of these. Counts are rows: some are scripted probes (for example a deliberately made-up plan id) or the same prompt run again.", "", "| time (UTC) | stage | order | rule | why | next safe action |", "|---|---|---|---|---|---|");
@@ -94,4 +96,21 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
     out.push("");
   }
   return out.join("\n") + "\n";
+};
+
+// `pilot journal --card`: a short text receipt of your own journal, sized for a post (X counts a link
+// as 23 characters), with your latest fill on the explorer and a link back to pilot.
+export const REPO = "https://github.com/edycutjong/dreamdex-pilot";
+export const renderCard = (entries, { explorer = EXPLORER, repo = REPO } = {}) => {
+  const by = (k) => entries.filter((e) => e.kind === k);
+  const refusals = by("refusal").filter((e) => e.refused_by === "pilot-policy");
+  const rules = new Set(refusals.flatMap((e) => e.rules ?? []));
+  const fills = [...by("order"), ...by("close")].filter((e) => /^0x[0-9a-f]{64}$/i.test(e.tx ?? ""));
+  const last = fills.sort((a, b) => String(a.at).localeCompare(String(b.at))).at(-1);
+  return [
+    "My AI agent's dreamDEX perps receipts (Somnia testnet, via pilot):",
+    `${by("order").length} orders opened, ${by("close").length} closed, ${by("bracket").length} brackets, ${refusals.length} refused by my limits (${rules.size} rules).`,
+    ...(last ? [`Latest fill: ${explorer}/tx/${last.tx}`] : []),
+    repo,
+  ].join("\n") + "\n";
 };

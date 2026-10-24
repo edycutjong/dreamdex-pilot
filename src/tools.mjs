@@ -146,7 +146,7 @@ const refusePilot = (deps, base, rule, detail, next) => {
 // position at trigger time (quantity 0 = resolved against the live position when it fires),
 // MARKET type (slippage-bounded by the registry). Both legs are reduce-only, so a bracket can
 // only shrink risk: like close_position it is not blocked by the allowlist or the daily cap, but
-// it needs a position to protect, a sane trigger distance, and the SOMI the registry holds
+// it needs a position to protect, a sane trigger distance, and the STT the registry holds
 // (refunded on cancel).
 export const bracket = async (deps, { market, take_profit_pct, stop_loss_pct }) => {
   const client = deps.client();

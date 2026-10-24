@@ -1,0 +1,97 @@
+# scripts/plan-expiry-via-mcp.mjs (scripted MCP stdio client, no LLM) on HEAD 0aa65cd: plan_order, wait past the plan's lifetime, place_order twice. No transaction is sent.
+# journal rows: evidence/p6-plan-expired-journal.jsonl
+
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "verdict": "ok",
+    "plan_id": "plan_2b867222f225",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1",
+    "limitPrice": "103.56",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.52",
+      "ask": "102.54"
+    },
+    "markPrice": "102.401945603226",
+    "notionalUsd": 10.356,
+    "positionNow": "0",
+    "positionAfter": "0.1",
+    "positionNotionalAfterUsd": 10.356,
+    "marginLockUsd": 0.6336,
+    "projectedLeverageX": 0.2073,
+    "liquidationPrice": null,
+    "liquidationDistancePct": null,
+    "liquidationNote": "no reachable liquidation price at this size",
+    "exchangeMaxSize": "7.81",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 25,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_2b867222f225 within 60s to send it"
+  }
+}
+# waiting 62 s (the plan's lifetime + 2)
+{
+  "tool": "place_order",
+  "args": {
+    "plan_id": "plan_2b867222f225"
+  },
+  "isError": true,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "ok": false,
+    "refused_by": "pilot-policy",
+    "rule": "planExpired",
+    "reason": "plan plan_2b867222f225 expired 2s ago (plans live 60s)",
+    "next": "call plan_order again for fresh prices",
+    "refusals": [
+      {
+        "rule": "planExpired",
+        "detail": "plan plan_2b867222f225 expired 2s ago (plans live 60s)",
+        "next": "call plan_order again for fresh prices"
+      }
+    ],
+    "plan_id": "plan_2b867222f225"
+  }
+}
+{
+  "tool": "place_order",
+  "args": {
+    "plan_id": "plan_2b867222f225"
+  },
+  "isError": true,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "ok": false,
+    "refused_by": "pilot-policy",
+    "rule": "planAlreadyUsed",
+    "reason": "plan plan_2b867222f225 was already used: an earlier place_order refused it (planExpired) and sent nothing",
+    "next": "call plan_order for a new plan",
+    "refusals": [
+      {
+        "rule": "planAlreadyUsed",
+        "detail": "plan plan_2b867222f225 was already used: an earlier place_order refused it (planExpired) and sent nothing",
+        "next": "call plan_order for a new plan"
+      }
+    ],
+    "plan_id": "plan_2b867222f225"
+  }
+}

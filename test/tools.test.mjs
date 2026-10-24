@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { appendFileSync } from "node:fs";
 import { accountInfo, armedBrackets, bracket, cancelAll } from "../src/tools.mjs";
-import { renderDemo, parseReceipts, EXPLORER } from "../src/demo.mjs";
+import { renderDemo, renderCard, parseReceipts, EXPLORER, REPO } from "../src/demo.mjs";
 import { makeDeps, px, sol, SOL } from "./fixtures.mjs";
 
 const longSol = () => { const t = makeDeps(); t.state.pos = sol(0.3); return t; };
@@ -316,6 +316,20 @@ describe("DEMO.md", () => {
     expect(md).toContain("; planned: margin $1.4417, 0.5075x leverage, liquidation 234283.29 (189.78% from mark)");
     expect(md).toContain("; planned: margin $0.63, 0.21x leverage, no reachable liquidation price at this size");
     expect(md).toContain("position after -0.00031 |"); // no plan row: nothing is made up
+  });
+
+  it("names the plan on a place-stage refusal that carries only a plan_id", () => {
+    const md = renderDemo([{ at: "2026-10-24T06:00:00.000Z", kind: "refusal", refused_by: "pilot-policy", stage: "place", plan_id: "plan_abc", rules: ["planExpired"], refusals: [{ rule: "planExpired", detail: "plan plan_abc expired 2s ago", next: "call plan_order again" }] }]);
+    expect(md).toContain("| place | plan plan_abc | planExpired |");
+  });
+
+  it("journal --card: counts from the journal, the latest fill on the explorer, a link back, fits a post", () => {
+    const card = renderCard(rows);
+    expect(card).toContain("1 orders opened, 1 closed, 0 brackets, 1 refused by my limits (1 rules).");
+    expect(card).toContain(`Latest fill: ${EXPLORER}/tx/0x${"2".repeat(64)}`); // the close, after the order
+    expect(card.trim().endsWith(REPO)).toBe(true);
+    expect(card.replace(/https:\/\/\S+/g, "x".repeat(23)).trim().length).toBeLessThanOrEqual(280);
+    expect(renderCard([])).not.toContain("Latest fill");
   });
 
   it("marks a tx that was not re-fetched instead of inventing a receipt", () => {
