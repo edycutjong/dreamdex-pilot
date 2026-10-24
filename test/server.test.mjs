@@ -64,6 +64,16 @@ describe("MCP server", () => {
     expect(both.isError).toBe(true);
     expect(none.content[0].text).toMatch(/exactly one/);
   });
+  it("plan_order accepts a size sent as a JSON number (MCP Inspector's CLI parses \"0.1\" into 0.1)", async () => {
+    const c = await connectDeps(makeDeps().deps);
+    const r = await c.callTool({ name: "plan_order", arguments: { market: "SOL", side: "long", size: 0.1 } });
+    expect(r.isError).toBeFalsy();
+    expect(JSON.parse(r.content[0].text)).toMatchObject({ verdict: "ok", size: "0.1" });
+    const tiny = await c.callTool({ name: "plan_order", arguments: { market: "SOL", side: "long", size: 1e-7 } });
+    expect(JSON.parse(tiny.content[0].text).refusals.map((x) => x.rule)).toContain("minQuantity");
+    const neg = await c.callTool({ name: "plan_order", arguments: { market: "SOL", side: "long", size: -1 } });
+    expect(neg.isError).toBe(true);
+  });
   it("runs plan -> place -> close -> journal over MCP", async () => {
     const { deps, state } = makeDeps();
     const c = await connectDeps(deps);

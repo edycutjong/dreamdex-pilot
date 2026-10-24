@@ -1,0 +1,36 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD 0d18cec, journal times 2026-10-24T02:39:51.295Z 2026-10-24T02:40:11.561Z (accounts, order, bracket, cancel_all, close, 3 pilot refusals).
+# Prompt: evidence/p3-prompt-cc.txt. journal rows: evidence/p3-mcp-run-cc-journal.jsonl (key from the shell env, never in the config).
+
+All five steps ran. The 0.1 SOL "recovery" plan in step 4 was itself refused, and I did not place anything for it.
+
+**1. Account (start)**
+- Equity was 49.5881 USDso, with no positions and no brackets.
+- STT for gas was 46.1027.
+- The policy is a $25 max notional per market, allowed markets BTC/ETH/SOL, and a daily cap of 20 orders.
+
+**2. SOL long 0.2**
+- `plan_order` returned verdict `ok` with plan_id `plan_bb658c9f9fbd`.
+- Liquidation line: `liquidationPrice` null, `liquidationDistancePct` null, note "no reachable liquidation price at this size". Projected leverage was 0.4151x.
+- `place_order` filled 0.2 of 0.2 at block 31575165. Tx: `0x260ef7392be1ca0c683961e96b13dcec1dc60275a3135a492c6549f7eb521cc9`
+
+**3. Bracket SOL (TP 3%, SL 2%)**
+- Entry was 102.58, with take-profit at 105.53 and stop-loss at 100.4.
+- Tx: `0xcaa4baa95a79f6933fb564ad7fc51467eeaac6f96ff33328f4d03e1d83ad6402`
+- `account` afterwards showed both legs under `pendingBrackets`: ids 3154393236604333328469 (mark <= 100.4) and 2508757194024499021908 (mark >= 105.53).
+- The position was 0.2 SOL, with unrealizedPnlUsd -0.0243209205692.
+
+**4. Refusals**
+- **DOGE long 100** was refused by pilot-policy on two rules:
+  - `allowedMarkets`: "DOGE is not on the allowed list (BTC, ETH, SOL)". The next action is to pick one of BTC, ETH, SOL.
+  - `minQuantity`: size 100 is below the DOGE minimum of 120. The next action is to plan at least 120 DOGE.
+- **SOL long $60 notional** was refused on `maxNotionalUsd`: "the position this order leaves would be $79.77 notional, above the $25 cap per market". The next action is "reduce size to at most 0.04 SOL".
+- **Recovery plan, SOL long 0.1** was also refused on `maxNotionalUsd`. The 0.2 position was still open, so it would leave $31.08, above the $25 cap. The next action was again "reduce size to at most 0.04 SOL".
+- **SOL long 0.04** (the size the refusal suggested) was refused on `minQuantity`: below the SOL minimum of 0.1, so the next action is "plan at least 0.1 SOL".
+- **Conclusion:** while the 0.2 SOL position is open, no SOL add is possible. The cap leaves room for at most 0.04, and the minimum is 0.1. A 0.1 SOL plan only passes once the position is closed.
+- **Not tried:** I did not plan a BTC or ETH order.
+
+**5. Teardown**
+- **`cancel_all` SOL** cancelled both stops. Tx: `0x3461c0ca47c4811b40a5e1884a6cee9c5cb0515c201e1ec4e178fc5c56798382`
+- **`close_position` SOL** closed 0.2 at block 31575348, with positionAfter "0". Tx: `0x7f99d5d8beccd5def915f70409f875f88806fd561046c8c8bce3050184e38b97`
+- **`account` (end):** equity 49.5821, positions `[]`, pendingBrackets `[]`, and `ordersSentTodayUtc` 1.
+- **`journal` limit 12:** it returned 9 entries (total 9). In order they are: plan, order, bracket, four refusals, cancel, close. The journal file is `evidence/p3-mcp-run-cc-journal.jsonl`.

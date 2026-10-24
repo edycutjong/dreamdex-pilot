@@ -1,0 +1,17 @@
+# Codex CLI (codex exec, an OpenAI model, not Anthropic) driving pilot over stdio on HEAD 0d18cec, journal times 2026-10-24T02:41:02.684Z 2026-10-24T02:41:26.903Z: 2 real orders + closes, 2 pilot refusals.
+# Prompt: evidence/p3-prompt-codex.txt. journal rows: evidence/p3-mcp-run-codex-journal.jsonl (key passed via env_vars, never in the config).
+
+Completed on Somnia Hideki testnet.
+
+- ETH long `0.01` opened and closed.
+  - Open tx: `0xb32fa03c6f42e611ed354789b70517f2d67c10971351b0ad165c09750afa3d62`
+  - Close tx: `0x24242376128a7a48aba6143b23c89d348447f362ba56e8e9a6edd381b3272df1`
+
+- BTC short `0.0005` refused: `maxNotionalUsd` — `$40.11` exceeds the `$25` per-market cap. Safe size: at most `0.00031 BTC`.
+  - `0.00031` opened and closed.
+  - Open tx: `0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080`
+  - Close tx: `0xc0b61e172fc9ad9940aeec271a9294450caed65668e8b8844acadeeeb9454113`
+
+- DOGE long `200` refused by `allowedMarkets`: DOGE is not on the allowed list (`BTC`, `ETH`, `SOL`). Next safe action: pick one of `BTC`, `ETH`, or `SOL`.
+
+Final account: equity/unlocked/withdrawable `49.577239` USDso, locked margin `0`, STT `46.0246`, Healthy, no positions, `2` orders sent today. Journal limit `10` returned `8` entries.

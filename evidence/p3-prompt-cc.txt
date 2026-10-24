@@ -1,0 +1,7 @@
+You are driving a real dreamDEX perps account on Somnia testnet ONLY through the `pilot` MCP tools (no shell, no other tools). Do these steps in order and report what each tool returned, quoting tx hashes exactly:
+1. account.
+2. plan_order: SOL long, size 0.2. If the verdict is ok, show me the liquidation price/distance line and then place_order with the plan_id.
+3. bracket on SOL: take_profit_pct 3, stop_loss_pct 2. Then account again (the bracket must show as pending).
+4. plan_order: DOGE long, size 100 (expect a policy refusal; report the rule). Then plan_order: SOL long, notional_usd 60 (expect a refusal; report the rule and the next safe action it gives). Then pick a market that IS allowed and plan a 0.1 SOL long to show the recovery — but do NOT place it.
+5. cancel_all for SOL (tears the bracket down), then close_position for SOL, then account, then journal with limit 12.
+Be concise. Never invent a number; copy tool output.

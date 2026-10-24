@@ -1,0 +1,7 @@
+You are driving a real dreamDEX perps testnet account ONLY through the `pilot` MCP server tools (do not run shell commands). Steps, in order, quoting tx hashes exactly as the tools return them:
+1. account.
+2. plan_order ETH long, size 0.01. If ok, place_order with the plan_id. Then close_position for ETH.
+3. plan_order BTC short, size 0.0005 (use the smallest size the tool allows if it says the minimum is higher; stay under the policy). If ok, place_order with the plan_id, then close_position for BTC.
+4. plan_order DOGE long size 200 and tell me the refusal rule and next safe action.
+5. account, then journal with limit 10.
+Report concisely, copy numbers from tool output, invent nothing.

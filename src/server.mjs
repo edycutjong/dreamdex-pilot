@@ -12,6 +12,8 @@ const NETWORK = "Somnia Hideki testnet (chain 50383)";
 
 const text = (v) => ({ content: [{ type: "text", text: typeof v === "string" ? v : json(v) }] });
 const fail = (msg) => ({ isError: true, content: [{ type: "text", text: typeof msg === "string" ? msg : json(msg) }] });
+// A JSON number as a plain decimal string (1e-7 would not parse as a size).
+const decimalString = (n) => (typeof n === "string" ? n : /e/i.test(String(n)) ? n.toFixed(18).replace(/0+$/, "") : String(n));
 const guard = (label, fn) => async (args) => {
   try {
     return await fn(args);
@@ -64,12 +66,14 @@ export const createServer = (deps) => {
       inputSchema: {
         market: z.string().min(1).max(16).describe("Base symbol, e.g. BTC, ETH, SOL"),
         side: z.enum(["long", "short"]),
-        size: z.string().regex(/^\d+(\.\d+)?$/).optional().describe("Size in base units, e.g. \"0.1\""),
+        // Some clients (MCP Inspector's CLI) JSON-parse "0.1" into a number before sending it.
+        size: z.union([z.string().regex(/^\d+(\.\d+)?$/), z.number().positive().max(1e12)]).optional().describe("Size in base units, e.g. \"0.1\""),
         notional_usd: z.number().positive().max(1_000_000).optional().describe("Size as USD notional, e.g. 20"),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    guard("plan_order", async ({ market, side, size, notional_usd }) => {
+    guard("plan_order", async ({ market, side, size: rawSize, notional_usd }) => {
+      const size = rawSize == null ? rawSize : decimalString(rawSize);
       if ((size == null) === (notional_usd == null)) return fail("Give exactly one of size or notional_usd.");
       try {
         return text({ network: NETWORK, ...(await planOrder(d, { market, side, size, notionalUsd: notional_usd })) });

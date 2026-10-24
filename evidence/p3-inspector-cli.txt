@@ -1,0 +1,37 @@
+# MCP Inspector (@modelcontextprotocol/inspector --cli, a non-Anthropic client), HEAD 0d18cec+, one stdio server process PER call; journal: evidence/p3-inspector-journal.jsonl.
+# Read-only calls: only the public PILOT_ACCOUNT address is passed (no signing key). CLI mode starts a fresh server per call, so a plan_id from one call does not exist in the next
+# (plans are in-memory and one-shot): place orders from Inspector's UI mode or any client that keeps the session (Claude Code and Codex runs: p3-mcp-run-*.txt).
+
+## tools/list (names)
+['account', 'bracket', 'cancel_all', 'close_position', 'journal', 'markets', 'place_order', 'plan_order', 'policy']
+
+## tools/call account
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"network\": \"Somnia Hideki testnet (chain 50383)\",\n  \"account\": \"0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b\",\n  \"sttForGas\": 46.0246,\n  \"collateralUsdso\": {\n    \"equity\": 49.577239,\n    \"unlocked\": 49.577239,\n    \"lockedAsMargin\": 0,\n    \"withdrawable\": 49.577239\n  },\n  \"marginStatus\": \"Healthy\",\n  \"marginRequirementsUsd\": {\n    \"initial\": 0,\n    \"maintenance\": 0,\n    \"closeOut\": 0\n  },\n  \"positions\": [],\n  \"pendingBrackets\": [],\n  \"policy\": {\n    \"maxNotionalUsd\": 25,\n    \"allowedMarkets\": [\n      \"BTC\",\n      \"ETH\",\n      \"SOL\"\n    ],\n    \"dailyOrderCap\": 20,\n    \"ordersSentTodayUtc\": 0,\n    \"source\": \"defaults (no policy file)\"\n  },\n  \"asOfBlock\": 31577085\n}"
+    }
+  ]
+}
+
+## tools/call plan_order SOL long size 0.1 (Inspector sends 0.1 as a JSON number)
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"network\": \"Somnia Hideki testnet (chain 50383)\",\n  \"verdict\": \"ok\",\n  \"plan_id\": \"plan_9420e84f87d6\",\n  \"expiresInSec\": 60,\n  \"market\": \"SOL\",\n  \"side\": \"long\",\n  \"size\": \"0.1\",\n  \"limitPrice\": \"103.58\",\n  \"orderType\": \"IOC (fills now or not at all, never rests)\",\n  \"touch\": {\n    \"bid\": \"102.53\",\n    \"ask\": \"102.56\"\n  },\n  \"markPrice\": \"102.438662227968\",\n  \"notionalUsd\": 10.358,\n  \"positionNow\": \"0\",\n  \"positionAfter\": \"0.1\",\n  \"positionNotionalAfterUsd\": 10.358,\n  \"marginLockUsd\": 0.632,\n  \"projectedLeverageX\": 0.2071,\n  \"liquidationPrice\": null,\n  \"liquidationDistancePct\": null,\n  \"liquidationNote\": \"no reachable liquidation price at this size\",\n  \"exchangeMaxSize\": \"7.84\",\n  \"limitedBy\": \"collateral\",\n  \"policy\": {\n    \"maxNotionalUsd\": 25,\n    \"minLiquidationDistancePct\": 15,\n    \"allowedMarkets\": [\n      \"BTC\",\n      \"ETH\",\n      \"SOL\"\n    ],\n    \"dailyOrderCap\": 20\n  },\n  \"next\": \"call place_order with plan_id plan_9420e84f87d6 within 60s to send it\"\n}"
+    }
+  ]
+}
+
+## tools/call place_order with a plan_id that this process never issued
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"network\": \"Somnia Hideki testnet (chain 50383)\",\n  \"ok\": false,\n  \"refused_by\": \"pilot-policy\",\n  \"rule\": \"unknownPlan\",\n  \"reason\": \"no live plan plan_0123456789ab: plans live in this server's memory only and are one-shot\",\n  \"next\": \"call plan_order first\",\n  \"refusals\": [\n    {\n      \"rule\": \"unknownPlan\",\n      \"detail\": \"no live plan plan_0123456789ab: plans live in this server's memory only and are one-shot\",\n      \"next\": \"call plan_order first\"\n    }\n  ],\n  \"plan_id\": \"plan_0123456789ab\"\n}"
+    }
+  ],
+  "isError": true
+}
