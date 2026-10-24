@@ -87,6 +87,22 @@ describe("createChain", () => {
     const e = await chain.cancelStops({}).catch((x) => x);
     expect(e.txHash).toBeNull();
   });
+  it("runs a send's check inside the queue, after the write ahead of it: a failing check sends nothing", async () => {
+    const sent = [];
+    let release;
+    const gate = new Promise((r) => (release = r));
+    const chain = createChain(() => ({ trader: { placePerpStopOrder: async () => { await gate; sent.push("stops"); return {}; }, placePerpOrder: async (o) => { sent.push(o.id); return { hash: "0x1" }; } } }));
+    let expired = false;
+    const stops = chain.placeStops({});
+    const order = chain.send({ id: "order" }, () => { if (expired) throw Object.assign(new Error("plan expired while queued"), { pilotRefusals: [{ rule: "planExpired" }] }); });
+    expired = true; // what was valid when the order queued is no longer valid when the writer frees up
+    release();
+    await stops;
+    await expect(order).rejects.toMatchObject({ message: "plan expired while queued", pilotNotSent: true, pilotRefusals: [{ rule: "planExpired" }] });
+    expect(sent).toEqual(["stops"]);
+    expect(await chain.send({ id: "next" }, () => {})).toEqual({ hash: "0x1" }); // a passing check sends, and the queue is not stuck
+    expect(sent).toEqual(["stops", "next"]);
+  });
   it("keeps a thrown non-object intact instead of hiding it behind a TypeError", async () => {
     const chain = createChain(() => ({ trader: { cancelAllOrders: async () => { throw "plain string"; } } }));
     await expect(chain.cancelAll("0x")).rejects.toBe("plain string");

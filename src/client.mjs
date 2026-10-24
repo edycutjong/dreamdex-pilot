@@ -82,7 +82,19 @@ export const createChain = (make = writeMarkets) => {
     return r;
   };
   return {
-    send: (order) => run((t) => t.placePerpOrder(order)),
+    // `check` runs inside the queue, right before the broadcast: another write may have held the
+    // writer, so what was validated before queueing is validated again. If it throws, nothing is sent.
+    send: (order, check) => run(async (t) => {
+      if (check) {
+        try {
+          await check();
+        } catch (e) {
+          if (e && typeof e === "object") e.pilotNotSent = true;
+          throw e;
+        }
+      }
+      return t.placePerpOrder(order);
+    }),
     placeStops: (params) => run((t) => t.placePerpStopOrder(params), true),
     cancelStops: (params) => run((t) => t.cancelPerpStopOrders(params)),
     cancelAll: (pool) => run((t) => t.cancelAllOrders(pool)),

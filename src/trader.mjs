@@ -228,15 +228,17 @@ const failedBeforeSend = (deps, e, extra) => {
 
 // One IOC send + read-back, shared by place_order and close_position. Exchange refusals and other
 // failures come back as values (journaled), never as thrown errors.
-const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
+const sendIoc = async (deps, { action, raw, plan_id, extra = {}, check }) => {
   const u = units({ quoteDecimals: raw.quoteDecimals, baseDecimals: raw.baseDecimals });
   const order = { pool: raw.pool, isBid: raw.isBid, price: raw.price, quantity: raw.quantity, orderType: IOC, gas: GAS };
   const direction = action === "open" ? (raw.isBid ? "long" : "short") : raw.isBid ? "close short" : "close long";
   const base = { action, plan_id, market: raw.symbol, side: raw.isBid ? "buy" : "sell", direction, size: u.qty(raw.quantity), limitPrice: u.px(raw.price), ...extra };
   let res;
   try {
-    res = await deps.send(order);
+    res = await (check ? deps.send(order, check) : deps.send(order));
   } catch (e) {
+    // The re-check inside the writer queue refused it: nothing was broadcast.
+    if (e?.pilotRefusals) return refuseAll(deps, e.pilotRefusals, { plan_id, stage: "send" });
     const tx = e?.txHash ?? null;
     if (isExchangeRefusal(e)) {
       const x = explainExchangeError(e);
@@ -370,9 +372,10 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
     // withdrawal), and the liquidation price moves with it.
     const mark = BigInt(liq?.markPrice ?? margin?.markPrice ?? raw.markPrice ?? 0);
     const live = [];
+    const liveDist = liq?.priceable && mark !== 0n ? liquidationDistancePct(liq.projectedLiquidationPrice, mark) : null;
     if (!liq?.priceable || mark === 0n)
       live.push({ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview for this order at send time", next: "call plan_order again shortly" });
-    else live.push(...evaluate(policy, { market: raw.symbol, liquidationDistancePct: liquidationDistancePct(liq.projectedLiquidationPrice, mark) }));
+    else live.push(...evaluate(policy, { market: raw.symbol, liquidationDistancePct: liveDist }));
     if (!margin?.priceable)
       live.push({ rule: "marginUnknown", detail: "the exchange could not price a margin preview for this order at send time", next: "call plan_order again shortly" });
     else if (margin.voucherBlocked)
@@ -384,7 +387,25 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
     // tightens the plan's limit: a better touch, or a slippage limit cut since the plan, applies.
     const limitNow = limitPrice({ isBid: raw.isBid, ...touch, tick: raw.tick, slippagePct: policy.maxSlippagePct });
     const price = raw.isBid ? (limitNow < raw.price ? limitNow : raw.price) : limitNow > raw.price ? limitNow : raw.price;
-    return await sendIoc(deps, { action: "open", raw: { ...raw, price }, plan_id, extra: price === raw.price ? {} : { planLimitPrice: u.px(raw.price) } });
+    // Checked again inside the writer queue, immediately before the broadcast: a write on another
+    // market may have held the writer, and the plan must not go out after its expiry or under a
+    // policy the user tightened meanwhile. (The exposure and liquidation figures are the live ones
+    // read above; within this server no other order can change this market's position.)
+    const check = () => {
+      let now;
+      let found;
+      if (deps.now() > p.expiresAt) found = [{ rule: "planExpired", detail: `plan ${plan_id} expired while it waited for the writer (another transaction was being sent first)`, next: "call plan_order again for fresh prices" }];
+      else {
+        try {
+          now = deps.policy();
+        } catch (e) {
+          found = [{ rule: "policyUnreadable", detail: describeError(e), next: "fix the policy file, then plan again" }];
+        }
+        found ??= evaluate(now, { market: raw.symbol, notionalUsd: exposure, liquidationDistancePct: liveDist, ordersToday: ordersToday(deps) + s.opens - 1 });
+      }
+      if (found.length) throw Object.assign(new Error(found[0].detail), { pilotRefusals: found });
+    };
+    return await sendIoc(deps, { action: "open", raw: { ...raw, price }, plan_id, check, extra: price === raw.price ? {} : { planLimitPrice: u.px(raw.price) } });
   } finally {
     s.opens--;
     s.markets.delete(raw.symbol);

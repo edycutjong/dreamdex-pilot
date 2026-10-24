@@ -23,12 +23,12 @@ const journal = { ...real, append: (e) => real.append(injected ? { ...e, injecte
 const chain = createChain();
 const reader = readMarkets();
 const fmt = (x) => (Number(x / 10_000_000_000_000_000n) / 100).toString();
-const send = (order) => {
+const send = (order, check) => {
   const price = ((order.price * 95n) / 100n / 10_000_000_000_000_000n) * 10_000_000_000_000_000n;
   injected = true;
   sentLimitPrice = fmt(price);
   real.append({ kind: "note", text: `race injected by scripts/exchange-refusal-injected.mjs: the planned limit ${fmt(order.price)} was lowered 5% to ${fmt(price)} in the sender before sending, standing in for the book moving between place_order's freshness check and mining. The order was unfillable by construction; no natural race. Everything else is the real tool path.`, plannedLimitPrice: fmt(order.price), sentLimitPrice: fmt(price) });
-  return chain.send({ ...order, price });
+  return chain.send({ ...order, price }, check);
 };
 const server = createServer({ client: () => reader.client, account: accountAddress, send, chain, journal, policy: () => loadPolicy() });
 const [a, b] = InMemoryTransport.createLinkedPair();

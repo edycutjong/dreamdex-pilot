@@ -181,6 +181,26 @@ describe("plan_order", () => {
 });
 
 describe("place_order", () => {
+  it("checks the plan again at broadcast, inside the writer queue: expired or newly disallowed while queued sends nothing", async () => {
+    const { deps, state, journal } = makeDeps();
+    // a sender that, like the real queue, runs the check only once the write ahead of it is done
+    const queued = (wait) => async (o, check) => { wait(); await check(); return deps.send(o); };
+    const p1 = await plan(deps);
+    const r1 = await placeOrder({ ...deps, send: queued(() => (state.clock += 61_000)) }, { plan_id: p1.plan_id });
+    expect(r1).toMatchObject({ ok: false, refused_by: "pilot-policy", rule: "planExpired", stage: "send" });
+    expect(r1.reason).toMatch(/expired while it waited for the writer/);
+    expect(journal.read().at(-1)).toMatchObject({ kind: "refusal", stage: "send", rules: ["planExpired"] });
+    expect((await placeOrder(deps, { plan_id: p1.plan_id })).reason).toMatch(/refused it \(planExpired\) and sent nothing/);
+    let policy = { ...DEFAULT_POLICY, source: "test" };
+    const d2 = { ...deps, policy: () => policy };
+    const p2 = await plan(d2);
+    const r2 = await placeOrder({ ...d2, send: queued(() => (policy = { ...policy, allowedMarkets: ["BTC"] })) }, { plan_id: p2.plan_id });
+    expect(r2).toMatchObject({ ok: false, rule: "allowedMarkets", stage: "send" });
+    expect(state.sends).toHaveLength(0);
+    const p3 = await plan(deps);
+    expect(await placeOrder({ ...deps, send: queued(() => {}) }, { plan_id: p3.plan_id })).toMatchObject({ ok: true }); // nothing changed: it sends
+    expect(state.sends).toHaveLength(1);
+  });
   it("re-checks a short against the cap at the live top bid: a bid that rose since the plan can push it over", async () => {
     const { deps, state } = makeDeps({ policy: () => ({ ...DEFAULT_POLICY, maxNotionalUsd: 24.5, source: "test" }) });
     state.bid = px(100);

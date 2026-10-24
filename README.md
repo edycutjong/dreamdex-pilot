@@ -124,8 +124,9 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 ## Safety
 
 - Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
-- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends.
-- The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it.
+- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends. If another transaction holds the writer first, the plan's expiry and your policy are checked again right before the broadcast.
+- The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it. It is measured at the highest price the order can fill at: a buy's limit, a sell's top bid.
+- One signing server per key: every MCP client session starts its own pilot server, and the first one to send holds a lock (`~/.pilot/locks`) until it exits. Another server for the same key keeps its read tools and plans, but its sends are refused with nothing sent (`evidence/p8-r05-signer-lock.txt`: two servers on one key from a scripted MCP client; the second one's `place_order` came back `sent: false` while the first opened and closed).
 - Closing and cancelling reduce risk, so your policy limits never block them, and neither does an invalid policy file (see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, a failed chain read, or the exchange refusing the IOC (with its decoded reason).
 
 ## Honest limits

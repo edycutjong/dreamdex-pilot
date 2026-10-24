@@ -7,7 +7,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "../src/server.mjs";
-import { readMarkets, createChain, accountAddress, assertAccountMatchesKey, CHAIN } from "../src/client.mjs";
+import { readMarkets, createChain, writeMarkets, accountAddress, assertAccountMatchesKey, CHAIN } from "../src/client.mjs";
+import { acquireSignerLock } from "../src/signer-lock.mjs";
 import { createJournal } from "../src/journal.mjs";
 import { loadPolicy } from "../src/policy.mjs";
 import { renderDemo, renderCard, parseReceipts } from "../src/demo.mjs";
@@ -42,10 +43,22 @@ if (process.env.PILOT_PRIVATE_KEY) {
   }
 }
 
-// Reads need no key; the signing client is built on the first write only.
+// Reads need no key; the signing client is built on the first write only, and that first write
+// takes the one-signer-per-account lock (src/signer-lock.mjs) for this process's lifetime. If
+// another live server holds it, the write fails as not sent and the next write tries again.
 let reader;
+let lock;
 const client = () => (reader ??= readMarkets()).client;
-const chain = createChain();
+const chain = createChain((opts) => {
+  const writer = writeMarkets(opts); // no key, or a mismatched PILOT_ACCOUNT, fails here: no lock taken
+  lock ??= acquireSignerLock({ account: accountAddress(), chainId: CHAIN.id });
+  return writer;
+});
+// The lock goes with the process: on exit, on a signal, and when the client closes stdin (a client
+// that crashed must not leave this server running and holding it).
+process.on("exit", () => lock?.release());
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => process.exit(0));
+process.stdin.on("end", () => process.exit(0));
 const rpc = createPublicClient({ chain: CHAIN, transport: http() });
 
 const server = createServer({
