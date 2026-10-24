@@ -8,6 +8,16 @@ Anyone who wants an AI agent (Claude Code, Codex CLI, any MCP client) to place d
 
 Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on, which I took to be the bounty's "Somnia Tokyo testnet" (dreamDEX's testnet docs describe Hideki as the Tokyo region). Use a burner key, never a wallet that holds anything real.
 
+## What pilot adds over handing the agent the SDK
+
+Give an agent the SDK and a key and it can send any order the exchange accepts. Pilot sits in between:
+
+- **Limits the agent cannot edit.** They live in a file and no tool writes it (`policy` is read-only).
+- **The cap is on the position, not the order**, so small orders cannot stack past it (see the $60 refusal below).
+- **Checked twice.** The policy, the liquidation distance and the margin are checked when the order is planned and again, on live state, when it is sent. A plan is one-shot and expires (60 seconds by default).
+- **A next step, not just a no.** A refusal names the rule and the next safe action with a number ("reduce size to at most 0.04 SOL"), so the agent can correct itself.
+- **It carries over between sessions.** Limits and the journal live in `~/.pilot`, so every new agent session starts from the same limits, the daily order cap counts across sessions and restarts, and the journal grows into one record of everything your agents did there.
+
 ## Tools
 
 | Tool | What it does |
