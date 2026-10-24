@@ -1,0 +1,117 @@
+{
+ "at": "2026-10-24T11:29:33.621Z",
+ "source": "client.listPerpMarkets() on Somnia Hideki testnet (read-only)",
+ "markets": 21,
+ "distinctMarginBanks": 1,
+ "marginBanks": [
+  "0x478769e1177c0773c43a593dccc4ad15f15f1394"
+ ],
+ "distinctStopRegistries": 21,
+ "rows": [
+  {
+   "market": "ZRO",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x1667a20a7481d704b1f75e8932d42a6bbafbd539"
+  },
+  {
+   "market": "LIT",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x6243c81d782ca091f47923e049a9ddc1070cb57a"
+  },
+  {
+   "market": "VVV",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x6ba14290fc5067578020e649ad066df08915e5cf"
+  },
+  {
+   "market": "1000PEPE",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x9942cd840dbbc0a51589027fef271dd9be836f08"
+  },
+  {
+   "market": "PUMP",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xe09c7550c2ef41a6ddabe368cbde83c8ba5259b6"
+  },
+  {
+   "market": "ZEC",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xbfe6f500627a0344270c72a61c4f9f9f31db9a05"
+  },
+  {
+   "market": "TAO",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x450b968dc94e3a854c47e37f38e2f6af6e1650b7"
+  },
+  {
+   "market": "WLD",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x092ba74067cdd5400f38f8b4e91b1a4cf8f7716d"
+  },
+  {
+   "market": "NEAR",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xf3a51c26ead3f84c2221336484bb42b8cfca076e"
+  },
+  {
+   "market": "XLM",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xa1b615be784784420f7dd7ef4a2a5a392bdb7242"
+  },
+  {
+   "market": "AVAX",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xc33db2dab35c46295cb435730f14f91a3cfd0367"
+  },
+  {
+   "market": "LINK",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x1c3fabc41871ec838960f80329dcd920fec241c9"
+  },
+  {
+   "market": "SUI",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xfdcfb2f985049cad3ac27472b6ae80c7a53ede89"
+  },
+  {
+   "market": "ADA",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x3a76c35c1cc0a0dbde646ce51a30805b077d211b"
+  },
+  {
+   "market": "BNB",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x487fd1e8bcedf4334a2e83aa86b426fd70e4e921"
+  },
+  {
+   "market": "DOGE",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0xb09cf2f2f91045f1ff1e4e824f9cf0fa29698757"
+  },
+  {
+   "market": "XRP",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x655e89a7e52490a421ad4c04fb6a7dd295cf1a5f"
+  },
+  {
+   "market": "HYPE",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x44c24cd26cf41037c6ebf337948a6c9bbc0ee055"
+  },
+  {
+   "market": "SOL",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x85a0879d19777c343eb317a890d5058ab92b8f5d"
+  },
+  {
+   "market": "ETH",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x44bfa5b28684e8d2156d15b85902da18f02b3a34"
+  },
+  {
+   "market": "BTC",
+   "marginBank": "0x478769e1177c0773c43a593dccc4ad15f15f1394",
+   "stopRegistry": "0x52e2ccebaec9332672c247e9a90aa3d61fb615ef"
+  }
+ ]
+}
