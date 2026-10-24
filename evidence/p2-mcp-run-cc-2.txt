@@ -1,0 +1,29 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio on HEAD after QA round 1, 2026-10-24 ~02:23 UTC.
+# Same mcp config as evidence/p2-mcp-run-cc.txt (key from the shell env, never in the config).
+# prompt: "You are trading on dreamDEX testnet through the pilot MCP tools. 1) Plan a long of 0.1 DOGE and tell me what the tool says. 2) Plan a long of 0.1 SOL; report limit price, notional and liquidation price. 3) If that plan verdict is ok, place it with its plan_id. 4) Close the SOL position. 5) Show the last 4 journal entries. Report every tx hash in full. Do not retry a refused order and do not switch markets on your own."
+# The same prompt one run earlier (02:22 UTC, before the fix) got "InvalidInputError: quantity must be > 0" for DOGE: 0.1 floors to 0 on the 10-DOGE lot and the SDK preview threw. Now refused before any preview.
+# journal rows: evidence/p2-mcp-run-cc-2-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
+
+**1) DOGE long of 0.1: refused by pilot's policy.** I didn't retry it or switch markets.
+- DOGE isn't on the allowed list (BTC, ETH, SOL).
+- 0.1 DOGE rounds to 0 on the 10-lot, which is below the DOGE minimum of 120.
+- The limit price would have been 0.07959.
+- No plan_id was issued and no tx was sent.
+
+**2) SOL long of 0.1: plan verdict ok.**
+- Plan ID: `plan_14ca8b9ad5a3`
+- Limit price: 103.49 (IOC)
+- Notional: $10.349
+- Liquidation price: none. The plan says "no reachable liquidation price at this size", so there is no liquidation distance either.
+
+**3) Placed with its plan_id.** It filled 0.1 of 0.1, and the position after was 0.1.
+- Tx: `0x1dd0e0ca5eb04aaa0640d8de8c9e085bf366f5fd540a48c6c8b767d68fab2e5c`
+
+**4) Closed the SOL position.** It sold 0.1 at a limit of 101.43, and the position after is 0 (flat).
+- Tx: `0x1811edb9319f2096eb6d2dd9536cbb9091642b3277e79cf7afa451d15ebc6f83`
+
+**5) Last 4 journal entries**, oldest first:
+1. 02:23:41 refusal: the DOGE plan, refused by pilot-policy on `allowedMarkets` and `minQuantity`.
+2. 02:23:41 plan: SOL long 0.1, `plan_14ca8b9ad5a3`.
+3. 02:23:43 order: SOL open, tx `0x1dd0e0ca5eb04aaa0640d8de8c9e085bf366f5fd540a48c6c8b767d68fab2e5c`, filled 0.1.
+4. 02:23:45 close: SOL close, tx `0x1811edb9319f2096eb6d2dd9536cbb9091642b3277e79cf7afa451d15ebc6f83`, position after 0.
