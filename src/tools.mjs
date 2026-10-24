@@ -278,12 +278,23 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
   const result = { ok: true, ...base, cancelledStops: [], cancelledOrders: [], txs: [] };
   const fail = [];
   let journalRows;
+  // Cancelling reduces risk, so an unreadable journal does not block it: the brackets are then
+  // found from the indexer alone (which can lag a just-armed one by seconds), and the answer says so.
+  const rows = () => {
+    if (journalRows) return journalRows;
+    try {
+      return (journalRows = deps.journal.read());
+    } catch (e) {
+      result.journalUnreadable = `${describeError(e)}: brackets were looked up from the indexer only`;
+      return (journalRows = []);
+    }
+  };
   const success = (r) => (r.receipt?.status ?? "success") === "success";
   for (const mk of target) {
     if (!mk.stopRegistry) continue;
     let live;
     try {
-      live = await liveStops(deps, mk, indexed, (journalRows ??= deps.journal.read()));
+      live = await liveStops(deps, mk, indexed, rows());
     } catch (e) {
       fail.push({ ok: false, market: mk.baseSymbol, stage: "read stops", error: describeError(e), sent: false });
       continue;

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { appendFileSync } from "node:fs";
 import { accountInfo, bracket, cancelAll } from "../src/tools.mjs";
 import { renderDemo, parseReceipts } from "../src/demo.mjs";
 import { makeDeps, px, sol, SOL } from "./fixtures.mjs";
@@ -110,6 +111,15 @@ describe("cancel_all", () => {
     expect(r.cancelledStops).toEqual([{ market: "SOL", id: "11" }, { market: "SOL", id: "12" }]);
     expect(state.cancelCalls[0]).toEqual(["stops", { registry: SOL.stopRegistry, orderIds: ["11", "12"], gas: 20_000_000n }]);
     expect(journal.read().at(-1)).toMatchObject({ kind: "cancel", sent: true });
+  });
+  it("still cancels the indexer's brackets when the journal has a corrupt line, and says so", async () => {
+    const { deps, state, journal } = longSol();
+    stopsOn(state);
+    appendFileSync(journal.path, "{not json\n");
+    const r = await cancelAll(deps, { market: "SOL" });
+    expect(r).toMatchObject({ ok: true });
+    expect(r.cancelledStops).toEqual([{ market: "SOL", id: "11" }, { market: "SOL", id: "12" }]);
+    expect(r.journalUnreadable).toMatch(/not valid JSON.*indexer only/);
   });
   it("says so when there is nothing to cancel, names what it checked, and still looks for resting orders", async () => {
     const { deps, state, journal } = makeDeps();
@@ -335,7 +345,7 @@ describe("stop ownership and failed reads (round 2)", () => {
     expect(r.nothingToCancel).toBe(false);
     expect(r.failures[0]).toMatchObject({ stage: "read stops" });
   });
-  it("a corrupt journal line stops bracket and cancel_all before anything is sent", async () => {
+  it("a corrupt journal line stops bracket before anything is sent (cancel_all falls back to the indexer, above)", async () => {
     const { deps, state, journal } = longSol();
     const { appendFileSync } = await import("node:fs");
     appendFileSync(journal.path, "not json\n");
