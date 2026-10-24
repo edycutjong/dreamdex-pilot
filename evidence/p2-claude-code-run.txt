@@ -1,0 +1,33 @@
+# Claude Code (claude -p, model sonnet) driving pilot over stdio, 2026-10-24 ~02:17 UTC.
+# mcp config: {"mcpServers":{"pilot":{"command":"node","args":["<repo>/bin/pilot.mjs"]}}}; key from the shell env, never in the config.
+# prompt: "You are trading on dreamDEX testnet through the pilot MCP tools. 1) Show the policy. 2) Plan a long of 0.1 SOL and tell me the limit price, notional and liquidation price. 3) If the plan verdict is ok, place it with its plan_id. 4) Close the SOL position. 5) Show the last 4 journal entries. Report every tx hash in full. Do not retry a refused order."
+# journal rows: evidence/p2-claude-code-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
+
+All five steps ran. The long opened and closed cleanly, and the SOL position is now flat. Both orders filled in full on Somnia Hideki testnet (chain 50383), and neither was refused.
+
+**1. Policy** (defaults, no policy file)
+- Max notional is $25 per order.
+- Minimum liquidation distance is 15%.
+- Allowed markets are BTC, ETH and SOL.
+- The daily order cap is 20, and 0 orders had been sent today.
+- Max slippage is 1%, and a plan stays valid for 60 seconds.
+
+**2. Plan: long 0.1 SOL** (`plan_26600bb22b61`)
+- The verdict was **ok**.
+- The limit price was **103.58** (IOC). The touch was bid 102.52 and ask 102.56, and the mark price was about 102.43.
+- The notional was **$10.358**.
+- The **liquidation price was null**, so there was no distance to check against the 15% minimum. The tool's note says there is "no reachable liquidation price at this size". Projected leverage was 0.21x, with $0.6333 of margin locked.
+
+**3. Order placed**
+- It filled 0.1 of 0.1, and the position after was 0.1 (block 31561842).
+- Tx: `0x1af6a83e73b52a31961f428f02cc3a9070553785030efafd11c55f133968aef4`
+
+**4. Position closed**
+- The close was a sell of 0.1 at a limit of 101.5, and the position after was 0 (block 31561858).
+- Tx: `0x3efb403e32aa42c4803310c9ac9f617b10ffe63cc2f07c38e384da89cf1e3c22`
+
+**5. Journal**
+You asked for the last 4 entries, but the journal only has 3. They are all from 2026-10-24 and are listed oldest to newest:
+1. At 02:17:38Z, a `plan` entry for `plan_26600bb22b61`, SOL long 0.1, limit 103.58.
+2. At 02:17:40Z, an `order` entry for the open, which succeeded with the open tx above.
+3. At 02:17:42Z, a `close` entry for the SOL close, which succeeded with the close tx above.
