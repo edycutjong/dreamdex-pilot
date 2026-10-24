@@ -1,7 +1,7 @@
 # Claude Code (claude -p, model sonnet) driving pilot over stdio, 2026-10-24 ~02:17 UTC.
 # mcp config: {"mcpServers":{"pilot":{"command":"node","args":["<repo>/bin/pilot.mjs"]}}}; key from the shell env, never in the config.
 # prompt: "You are trading on dreamDEX testnet through the pilot MCP tools. 1) Show the policy. 2) Plan a long of 0.1 SOL and tell me the limit price, notional and liquidation price. 3) If the plan verdict is ok, place it with its plan_id. 4) Close the SOL position. 5) Show the last 4 journal entries. Report every tx hash in full. Do not retry a refused order."
-# journal rows: evidence/p2-claude-code-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
+# journal rows: evidence/p2-mcp-run-cc-journal.jsonl; receipts re-fetched: evidence/p2-receipts-refetch.txt
 
 All five steps ran. The long opened and closed cleanly, and the SOL position is now flat. Both orders filled in full on Somnia Hideki testnet (chain 50383), and neither was refused.
 
