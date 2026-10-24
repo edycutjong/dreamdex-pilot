@@ -1,4 +1,4 @@
-# MCP Inspector (@modelcontextprotocol/inspector --cli, a non-Anthropic client), HEAD 0d18cec+, one stdio server process PER call; journal: evidence/p3-inspector-journal.jsonl.
+# MCP Inspector (@modelcontextprotocol/inspector --cli, a non-Anthropic client), HEAD 0d18cec+, one stdio server process PER call; journal: evidence/p3-mcp-cli-client-journal.jsonl.
 # Read-only calls: only the public PILOT_ACCOUNT address is passed (no signing key). CLI mode starts a fresh server per call, so a plan_id from one call does not exist in the next
 # (plans are in-memory and one-shot): place orders from Inspector's UI mode or any client that keeps the session (Claude Code and Codex runs: p3-mcp-run-*.txt).
 
