@@ -34,7 +34,10 @@ export const loadPolicy = (path = policyPath()) => {
   if (!existsSync(path)) return { ...DEFAULT_POLICY, source: "defaults (no policy file)" };
   let p;
   try {
-    p = PolicySchema.parse({ ...DEFAULT_POLICY, ...JSON.parse(readFileSync(path, "utf8")) });
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    // Spread turns null, a number or [] into no keys at all, which would read as "all defaults".
+    if (doc === null || typeof doc !== "object" || Array.isArray(doc)) throw new Error("file: must be a JSON object of policy keys");
+    p = PolicySchema.parse({ ...DEFAULT_POLICY, ...doc });
   } catch (e) {
     const why = e?.issues ? e.issues.map((i) => `${i.path.join(".") || "file"}: ${i.message}`).join("; ") : e.message;
     throw Object.assign(new Error(`policy file ${path} is invalid (${why}); fix it, pilot does not fall back to defaults`), { pilotUser: true });

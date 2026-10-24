@@ -12,6 +12,18 @@ describe("money math", () => {
     expect(limitPrice({ isBid: true, bid: px(102.5), ask: px(102.52), tick, slippagePct: 1 })).toBe(px(103.54)));
   it("prices a sell at bid - slippage, ceiled to the tick", () =>
     expect(limitPrice({ isBid: false, bid: px(102.5), ask: px(102.52), tick, slippagePct: 1 })).toBe(px(101.48)));
+  it("never rounds the slippage budget up: sub-basis-point budgets floor to whole basis points", () => {
+    // 0.015% used to round to 2 bp (0.02%), past the configured bound; it now floors to 1 bp
+    expect(limitPrice({ isBid: true, bid: px(100), ask: px(100), tick: 1n, slippagePct: 0.015 })).toBe(px(100.01));
+    expect(limitPrice({ isBid: false, bid: px(100), ask: px(100), tick: 1n, slippagePct: 0.015 })).toBe(px(99.99));
+    expect(limitPrice({ isBid: true, bid: px(100), ask: px(100), tick: 1n, slippagePct: 0.005 })).toBe(px(100)); // below 1 bp: the touch itself
+    expect(limitPrice({ isBid: true, bid: px(100), ask: px(100), tick: 1n, slippagePct: 0.29 })).toBe(px(100.29)); // 0.29 * 100 = 28.999999999999996 in floats: still 29 bp
+  });
+  it("keeps a sell limit at or above the exact slippage bound on a one-unit tick (no truncation below it)", () => {
+    // 1001 * 0.99 = 990.99: truncating gave 990, below the bound; the limit is 991
+    expect(limitPrice({ isBid: false, bid: 1001n, ask: 1002n, tick: 1n, slippagePct: 1 })).toBe(991n);
+    expect(limitPrice({ isBid: true, bid: 1000n, ask: 1001n, tick: 1n, slippagePct: 1 })).toBe(1011n); // 1011.01 floors: never above the bound
+  });
   it("reads a zero or missing liquidation price as unreachable", () => {
     expect(liquidationDistancePct(0n, px(100))).toBeNull();
     expect(liquidationDistancePct(null, px(100))).toBeNull();

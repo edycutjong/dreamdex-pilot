@@ -41,6 +41,16 @@ describe("loadPolicy", () => {
     expect(() => loadPolicy(f)).toThrow(/^policy file .* is invalid \(.+\); fix it, pilot does not fall back to defaults$/);
     try { loadPolicy(f); } catch (e) { expect(e.pilotUser).toBe(true); } // the agent sees this sentence, not a raw ZodError
   });
+  it("rejects a file whose root is not an object (null, a number, an array would otherwise spread to nothing and read as all defaults)", () => {
+    for (const body of ["null", "false", "25", '""', "[]"]) {
+      const f = join(dir, "root.json");
+      writeFileSync(f, body);
+      expect(() => loadPolicy(f), body).toThrow(/^policy file .* is invalid \(file: must be a JSON object of policy keys\); fix it, pilot does not fall back to defaults$/);
+    }
+    const f = join(dir, "empty-object.json");
+    writeFileSync(f, "{}");
+    expect(loadPolicy(f)).toMatchObject({ maxNotionalUsd: 25, source: f }); // {} is a valid file: every key at its default
+  });
   it("rejects unknown keys (a typo must not silently drop a limit)", () => {
     const f = join(dir, "typo.json");
     writeFileSync(f, JSON.stringify({ maxNotional: 5 }));

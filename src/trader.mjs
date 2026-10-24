@@ -18,12 +18,15 @@ export const IOC = 2;
 const abs = (x) => (x < 0n ? -x : x);
 const floorTo = (x, step) => (x / step) * step;
 const ceilTo = (x, step) => ((x + step - 1n) / step) * step;
+const ceilDiv = (a, b) => (a + b - 1n) / b;
 
 // Limit price with slippage room off the touch, kept on the tick grid and inside the slippage bound:
-// a buy floors (never above ask + slippage), a sell ceils (never below bid - slippage).
+// a buy floors (never above ask + slippage), a sell ceils (never below bid - slippage). The budget
+// is whole basis points, floored so rounding never widens it (the epsilon absorbs float noise:
+// 0.29 * 100 = 28.999...).
 export const limitPrice = ({ isBid, bid, ask, tick, slippagePct }) => {
-  const bps = BigInt(Math.round(slippagePct * 100));
-  return isBid ? floorTo((ask * (10_000n + bps)) / 10_000n, tick) : ceilTo((bid * (10_000n - bps)) / 10_000n, tick);
+  const bps = BigInt(Math.floor(slippagePct * 100 + 1e-9));
+  return isBid ? floorTo((ask * (10_000n + bps)) / 10_000n, tick) : ceilTo(ceilDiv(bid * (10_000n - bps), 10_000n), tick);
 };
 
 export const notionalRaw = (quantity, price, baseDecimals) => (quantity * price) / 10n ** BigInt(baseDecimals);
