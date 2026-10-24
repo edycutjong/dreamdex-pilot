@@ -384,6 +384,17 @@ describe("place_order", () => {
 });
 
 describe("close_position", () => {
+  it("says so when the close flipped the position (something else reduced it while the close was in flight)", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1);
+    const send = async (o) => { state.pos = 0n; return deps.send(o); }; // a bracket fired first
+    const r = await closePosition({ ...deps, send }, { market: "SOL" });
+    expect(r).toMatchObject({ ok: true, positionAfter: "-0.1" });
+    expect(r.flipped).toMatch(/opened a short of 0\.1/);
+    const plain = makeDeps();
+    plain.state.pos = sol(0.1);
+    expect((await closePosition(plain.deps, { market: "SOL" })).flipped).toBeUndefined();
+  });
   it("does nothing when already flat", async () => {
     const { deps, state } = makeDeps();
     expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: true, status: "already flat" });

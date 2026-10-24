@@ -35,6 +35,14 @@ const liveStops = async (deps, mk, indexed, rows = deps.journal.read()) => {
   return live;
 };
 
+// Brackets still armed on one market. A bracket closes the WHOLE position at its trigger, so one
+// left behind after a close acts on the next position opened in that market, at its old prices.
+export const armedBrackets = async (deps, market) => {
+  const client = deps.client();
+  const mk = await findMarket(client, market);
+  return liveStops(deps, mk, await pendingStops(client, deps.account()));
+};
+
 // ---- account -----------------------------------------------------------------------------------
 export const accountInfo = async (deps) => {
   const client = deps.client();

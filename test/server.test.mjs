@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer } from "../src/server.mjs";
-import { makeDeps } from "./fixtures.mjs";
+import { makeDeps, sol, SOL as FIXTURE_SOL } from "./fixtures.mjs";
 
 const SOL = {
   baseSymbol: "SOL", poolAddress: "0xb483ec1fb34996638677c20ab087b16f1896fa53", marginBank: "0x478769e1177c0773c43a593dccc4ad15f15f1394",
@@ -100,6 +100,19 @@ describe("MCP server", () => {
     const c = await connectDeps(makeDeps().deps);
     const r = await c.callTool({ name: "place_order", arguments: { plan_id: "anything" } });
     expect(r.isError).toBe(true);
+  });
+  it("close_position says when a bracket on that market is still armed after the close", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1);
+    state.stops = [{ orderIdRaw: "11", registry: FIXTURE_SOL.stopRegistry, isBid: false }];
+    const c = await connectDeps(deps);
+    const body = JSON.parse((await c.callTool({ name: "close_position", arguments: { market: "SOL" } })).content[0].text);
+    expect(body).toMatchObject({ ok: true, positionAfter: "0", bracketStillArmed: { stopIds: ["11"] } });
+    expect(body.bracketStillArmed.next).toMatch(/cancel_all/);
+    state.stops = [];
+    state.pos = sol(0.1);
+    const clean = JSON.parse((await c.callTool({ name: "close_position", arguments: { market: "SOL" } })).content[0].text);
+    expect(clean.bracketStillArmed).toBeUndefined();
   });
   it("journals an unexpected plan_order failure", async () => {
     const { deps } = makeDeps();

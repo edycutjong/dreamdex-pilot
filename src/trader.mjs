@@ -246,17 +246,23 @@ const sendIoc = async (deps, { action, raw, plan_id, extra = {} }) => {
   }
   let positionAfter = null;
   let readBack;
+  let flipped;
   try {
     // Report 016 (sieve): margin/equity reads can pin a block from before our own receipt;
     // getPerpPosition reads at latest, so it is the read-back.
-    positionAfter = u.qty((await deps.client().getPerpPosition({ pool: raw.pool, marginBank: raw.marginBank, account: deps.account() })).size);
+    const after = (await deps.client().getPerpPosition({ pool: raw.pool, marginBank: raw.marginBank, account: deps.account() })).size;
+    positionAfter = u.qty(after);
+    // A perp order is not reduce-only on chain: if something else shrank the position while the
+    // close was in flight (a bracket triggering, another client), the close opens the other side.
+    if (action === "close" && (raw.isBid ? after > 0n : after < 0n))
+      flipped = `the position was reduced by something else while this close was in flight (a bracket triggering, another client), so the close opened a ${after > 0n ? "long" : "short"} of ${u.qty(after < 0n ? -after : after)}: call close_position again`;
   } catch (e) {
     readBack = `the order landed but the position read-back failed (${describeError(e)}); close_position reads it live`;
   }
   const out = {
     ok: true, ...base, tx: res.hash, block: Number(res.receipt?.blockNumber ?? 0), status: res.receipt?.status ?? null,
     gasUsed: res.receipt?.gasUsed?.toString?.() ?? null, orderId: res.orderId?.toString() ?? null,
-    filled, requested: u.qty(raw.quantity), positionAfter, ...(readBack ? { readBack } : {}),
+    filled, requested: u.qty(raw.quantity), positionAfter, ...(readBack ? { readBack } : {}), ...(flipped ? { flipped } : {}),
   };
   try {
     deps.journal.append({ kind: action === "close" ? "close" : "order", sent: true, ...out });

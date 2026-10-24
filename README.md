@@ -12,7 +12,7 @@ Testnet only (Somnia Hideki, chain 50383). Use a burner key, never a wallet that
 | `account` | Reads the account live: STT for gas, USDso collateral, margin status, open positions with entry, mark and unrealized PnL, pending brackets, policy headroom. |
 | `plan_order` | Plans a market-taking (IOC) order without sending it: max size, margin, projected liquidation price, and a verdict against your policy. An ok plan gets a short-lived one-shot `plan_id`. |
 | `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan, re-checks the policy and re-runs the liquidation and margin previews on live state. If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason. |
-| `close_position` | Closes the whole position in a market from the live on-chain size. Never blocked by policy. |
+| `close_position` | Closes the whole position in a market from the live on-chain size. Never blocked by policy. Says when a bracket on that market is still armed (it would act on your next position there) and when something else shrank the position mid-close so the close flipped it. |
 | `bracket` | Arms a linked take-profit and stop-loss (one cancels the other) on an open position. Reduce-only, held on chain. |
 | `cancel_all` | Cancels pending brackets and any resting orders; brackets are confirmed on chain, not only from the indexer. |
 | `policy` | Shows your limits. Read-only: no tool can change them. |

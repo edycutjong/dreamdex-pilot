@@ -4,7 +4,7 @@ import { z } from "zod";
 import { listMarkets } from "./markets.mjs";
 import { json } from "./client.mjs";
 import { planOrder, placeOrder, closePosition, ordersToday } from "./trader.mjs";
-import { accountInfo, bracket, cancelAll } from "./tools.mjs";
+import { accountInfo, armedBrackets, bracket, cancelAll } from "./tools.mjs";
 import { describeError } from "./exchange-errors.mjs";
 
 export const VERSION = "0.1.0";
@@ -111,6 +111,16 @@ export const createServer = (deps) => {
     },
     guard("close_position", async ({ market }) => {
       const r = await closePosition(d, { market });
+      if (r.ok) {
+        // A bracket outlives the position it protected: say so, never cancel it behind the user's back.
+        try {
+          const armed = await armedBrackets(d, market);
+          if (armed.length)
+            r.bracketStillArmed = { stopIds: armed.map((x) => x.id), note: `this ${r.market} bracket stays armed and will act on your next ${r.market} position at its old trigger prices`, next: `cancel_all with market ${r.market} removes it` };
+        } catch (e) {
+          r.bracketCheck = `could not read the ${r.market} brackets (${describeError(e)}); account lists them`;
+        }
+      }
       return r.ok ? text({ network: NETWORK, ...r }) : fail({ network: NETWORK, ...r });
     }),
   );
