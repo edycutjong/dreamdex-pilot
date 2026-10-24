@@ -1,0 +1,32 @@
+# P9 (a2a r07): Claude Code (claude -p, model sonnet) limited to pilot's tools (--tools "" --strict-mcp-config, see p9-restricted-claude-code.txt) driving pilot over stdio on HEAD 85e9c0d, journal times "at":"2026-10-24T12:28:47.769Z" → "at":"2026-10-24T12:28:55.591Z" (open 0.2 SOL; a 0.1 SOL add, about $10 on its own, refused because the position it leaves would be over the $25 cap; nothing sent for it; close). Default policy (no policy file). Key from the shell env, never in the config.
+# Prompt: evidence/p9-undercap-prompt.txt. Journal: evidence/p9-undercap-cc-journal.jsonl. RPC re-read: evidence/p9-undercap-receipts-refetch.txt. Outside the DEMO.md counts, like the P7/P8 runs.
+
+All five steps ran. The 0.2 SOL long opened and filled, the 0.1 add-on was refused by the policy cap, and the position is now closed.
+
+**1. account (start)**
+- Equity was 49.480239 USDso, all unlocked, and margin status was Healthy.
+- There were no positions.
+- Gas balance was 45.1809 STT.
+- Policy came from defaults (no policy file): max notional $25 per market, min liquidation distance 15%, daily order cap 20.
+
+**2. SOL long 0.2**
+- The plan verdict was ok, with `plan_id` `plan_e8ea7144c126`, notional 20.536 and limit price 102.68.
+- Placing it succeeded: tx `0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`, block 31928406.
+- It filled 0.2 of 0.2 requested, so the position was 0.2.
+
+**3. SOL long 0.1**
+- The plan was refused by `pilot-policy`, so I did not place it.
+- Rule: `maxNotionalUsd`
+- Detail: "the position this order leaves would be $30.80 notional, above the $25 cap per market"
+- Next: "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room"
+
+**4. Follow the next safe action**
+- It says no SOL order fits, so I planned nothing.
+
+**5. close_position SOL, then account**
+- The close succeeded: tx `0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`, block 31928458.
+- It sold 0.2 at limit price 100.64, filled 0.2, and the position after was 0.
+- Final account: equity 49.478239 USDso, no positions or brackets, margin Healthy.
+- STT for gas was 45.1673, and `ordersSentTodayUtc` was 1.
+
+The round trip cost 0.002 USDso in equity (49.480239 to 49.478239) and about 0.0136 STT in gas.

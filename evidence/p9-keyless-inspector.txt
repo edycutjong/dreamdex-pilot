@@ -1,0 +1,23 @@
+# P9 (a2a r07): keyless reads + a keyless plan_order refusal through MCP Inspector CLI on HEAD 85e9c0d, 2026-10-24T12:26Z. No PILOT_PRIVATE_KEY in the environment; the Inspector does not pass the shell's environment to the server, so PILOT_ACCOUNT goes in with -e. Burner address = every DEMO.md tx's from. Nothing sent.
+$ npx @modelcontextprotocol/inspector --cli -e PILOT_ACCOUNT=0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b node bin/pilot.mjs --method tools/call --tool-name account   # no key anywhere
+pilot MCP server ready on stdio (Somnia Hideki testnet)
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"network\": \"Somnia Hideki testnet (chain 50383)\",\n  \"account\": \"0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b\",\n  \"sttForGas\": 45.1809,\n  \"collateralUsdso\": {\n    \"equity\": 49.480239,\n    \"unlocked\": 49.480239,\n    \"lockedAsMargin\": 0,\n    \"withdrawable\": 49.480239\n  },\n  \"marginStatus\": \"Healthy\",\n  \"marginRequirementsUsd\": {\n    \"initial\": 0,\n    \"maintenance\": 0,\n    \"closeOut\": 0\n  },\n  \"positions\": [],\n  \"pendingBrackets\": [],\n  \"policy\": {\n    \"maxNotionalUsd\": 25,\n    \"minLiquidationDistancePct\": 15,\n    \"allowedMarkets\": [\n      \"BTC\",\n      \"ETH\",\n      \"SOL\"\n    ],\n    \"dailyOrderCap\": 20,\n    \"maxSlippagePct\": 1,\n    \"planTtlSec\": 60,\n    \"ordersSentTodayUtc\": 0,\n    \"source\": \"defaults (no policy file)\"\n  },\n  \"asOfBlock\": 31926938\n}"
+    }
+  ]
+}
+exit 0
+$ npx @modelcontextprotocol/inspector --cli -e PILOT_ACCOUNT=0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b node bin/pilot.mjs --method tools/call --tool-name plan_order --tool-arg market=SOL --tool-arg side=long --tool-arg notional_usd=60   # no key anywhere
+pilot MCP server ready on stdio (Somnia Hideki testnet)
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"network\": \"Somnia Hideki testnet (chain 50383)\",\n  \"verdict\": \"refused\",\n  \"refused_by\": \"pilot-policy\",\n  \"market\": \"SOL\",\n  \"side\": \"long\",\n  \"size\": \"0.58\",\n  \"limitPrice\": \"102.71\",\n  \"orderType\": \"IOC (fills now or not at all, never rests)\",\n  \"touch\": {\n    \"bid\": \"101.69\",\n    \"ask\": \"101.7\"\n  },\n  \"markPrice\": \"101.539007059654\",\n  \"notionalUsd\": 59.5718,\n  \"positionNow\": \"0\",\n  \"positionAfter\": \"0.58\",\n  \"positionNotionalAfterUsd\": 59.5718,\n  \"marginLockUsd\": 3.6578,\n  \"projectedLeverageX\": 1.2067,\n  \"liquidationPrice\": \"17.845377541998231654\",\n  \"liquidationDistancePct\": 82.43,\n  \"exchangeMaxSize\": \"7.84\",\n  \"limitedBy\": \"collateral\",\n  \"refusals\": [\n    {\n      \"rule\": \"maxNotionalUsd\",\n      \"detail\": \"the position this order leaves would be $59.57 notional, above the $25 cap per market\",\n      \"next\": \"reduce size to at most 0.24 SOL\"\n    }\n  ],\n  \"policy\": {\n    \"maxNotionalUsd\": 25,\n    \"minLiquidationDistancePct\": 15,\n    \"allowedMarkets\": [\n      \"BTC\",\n      \"ETH\",\n      \"SOL\"\n    ],\n    \"dailyOrderCap\": 20\n  },\n  \"journaled\": \"2026-10-24T12:26:26.343Z\"\n}"
+    }
+  ]
+}
+exit 0
