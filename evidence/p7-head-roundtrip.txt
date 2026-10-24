@@ -1,0 +1,99 @@
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "verdict": "ok",
+    "plan_id": "plan_6dd990137da0",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "0.1",
+    "limitPrice": "103.73",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.67",
+      "ask": "102.71"
+    },
+    "markPrice": "102.5692256977045",
+    "notionalUsd": 10.373,
+    "positionNow": "0",
+    "positionAfter": "0.1",
+    "positionNotionalAfterUsd": 10.373,
+    "marginLockUsd": 0.6347,
+    "projectedLeverageX": 0.2076,
+    "liquidationPrice": null,
+    "liquidationDistancePct": null,
+    "liquidationNote": "no reachable liquidation price at this size",
+    "exchangeMaxSize": "7.8",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 25,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_6dd990137da0 within 60s to send it"
+  }
+}
+{
+  "tool": "place_order",
+  "args": {
+    "plan_id": "plan_6dd990137da0"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "ok": true,
+    "action": "open",
+    "plan_id": "plan_6dd990137da0",
+    "market": "SOL",
+    "side": "buy",
+    "direction": "long",
+    "size": "0.1",
+    "limitPrice": "103.73",
+    "tx": "0x5454c32f8faedb9cabb63de24a2dd48c4b7f299ed158d2b3869f79adc7efa643",
+    "block": 31651807,
+    "status": "success",
+    "gasUsed": "1650791",
+    "orderId": "9334052501297040636747",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0.1"
+  }
+}
+{
+  "tool": "close_position",
+  "args": {
+    "market": "SOL"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "ok": true,
+    "action": "close",
+    "market": "SOL",
+    "side": "sell",
+    "direction": "close long",
+    "size": "0.1",
+    "limitPrice": "101.65",
+    "positionBefore": "0.1",
+    "tx": "0xddd87155f6e7f19483048b4d858e9cd4f9b9c7abbf792ed83e503bf5039c6123",
+    "block": 31651814,
+    "status": "success",
+    "gasUsed": "1531691",
+    "orderId": "9334052501297040636748",
+    "filled": "0.1",
+    "requested": "0.1",
+    "positionAfter": "0"
+  }
+}
