@@ -32,8 +32,13 @@ export const policyPath = () => process.env.PILOT_POLICY ?? join(pilotHome(), "p
 // silent fallback to defaults the user did not choose.
 export const loadPolicy = (path = policyPath()) => {
   if (!existsSync(path)) return { ...DEFAULT_POLICY, source: "defaults (no policy file)" };
-  const raw = JSON.parse(readFileSync(path, "utf8"));
-  const p = PolicySchema.parse({ ...DEFAULT_POLICY, ...raw });
+  let p;
+  try {
+    p = PolicySchema.parse({ ...DEFAULT_POLICY, ...JSON.parse(readFileSync(path, "utf8")) });
+  } catch (e) {
+    const why = e?.issues ? e.issues.map((i) => `${i.path.join(".") || "file"}: ${i.message}`).join("; ") : e.message;
+    throw Object.assign(new Error(`policy file ${path} is invalid (${why}); fix it, pilot does not fall back to defaults`), { pilotUser: true });
+  }
   return { ...p, allowedMarkets: p.allowedMarkets.map((s) => s.toUpperCase()), source: path };
 };
 

@@ -5,9 +5,9 @@ the transaction status/block/gas column is re-read from the Somnia Hideki testne
 
 Order and close hashes link to their fills on dreamDEX's Hideki markets explorer (https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app). That explorer shows nothing for bracket, cancel and reverted transactions ("Nothing indexed for this transaction"), so those are checked by the RPC column only.
 
-Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl`, `p2-mcp-run-cc-3-journal.jsonl`, `p2-mcp-run-cc-4-journal.jsonl`, `p3-mcp-run-cc-journal.jsonl`, `p3-mcp-run-cc-2-journal.jsonl`, `p3-mcp-run-codex-journal.jsonl`, `p3-mcp-cli-client-journal.jsonl`, `p3-exchange-refusal-injected-journal.jsonl`, `p3-notes-journal.jsonl`, `p6-stacking-refusal-cc-journal.jsonl`, `p6-plan-expired-journal.jsonl`
+Journals rendered: `p2-mcp-run-cc-journal.jsonl`, `p2-mcp-run-cc-2-journal.jsonl`, `p2-mcp-run-cc-3-journal.jsonl`, `p2-mcp-run-cc-4-journal.jsonl`, `p3-mcp-run-cc-journal.jsonl`, `p3-mcp-run-cc-2-journal.jsonl`, `p3-mcp-run-codex-journal.jsonl`, `p3-mcp-cli-client-journal.jsonl`, `p3-exchange-refusal-injected-journal.jsonl`, `p3-notes-journal.jsonl`, `p6-stacking-refusal-cc-journal.jsonl`, `p6-plan-expired-journal.jsonl`, `p6-liquidation-rule-journal.jsonl`
 
-Clients: cc = Claude Code (Anthropic); codex = Codex CLI (OpenAI, not Anthropic); mcp-cli-client = MCP Inspector CLI (read-only, no signing key); injected = in-process MCP client with the race injected; the tight-slippage attempts in the Notes = a scripted MCP stdio client (no LLM), counted in the Notes only; plan-expired = a scripted MCP stdio client (no LLM) that waits out a plan
+Clients: cc = Claude Code (Anthropic); codex = Codex CLI (OpenAI, not Anthropic); mcp-cli-client = MCP Inspector CLI (read-only, no signing key); injected = in-process MCP client with the race injected; the tight-slippage attempts in the Notes = a scripted MCP stdio client (no LLM), counted in the Notes only; plan-expired = a scripted MCP stdio client (no LLM) that waits out a plan; liquidation-rule = a scripted MCP stdio client (no LLM), plans only, under a policy file with maxNotionalUsd 1000 (see Notes)
 
 The summary counts the journals listed above; attempts described only in a note are not in it.
 
@@ -17,7 +17,14 @@ The summary counts the journals listed above; attempts described only in a note 
 - Positions closed: **9**
 - Brackets armed (take-profit + stop-loss): **2**
 - Cancels that sent a transaction: **2**
-- Refusals by pilot's policy: **14** rows (**6** distinct rules); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)
+- Refusals by pilot's policy: **15** rows (**7** distinct rules); refusals by the exchange: **1** (1 of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)
+
+## The refusal to look at first
+
+2026-10-24T04:09:54.516Z: with 0.2 SOL already open, a long of 0.57 SOL (an order of $59.07) was refused and nothing was sent.
+
+- why: the position this order leaves would be $79.80 notional, above the $25 cap per market
+- next safe action: no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room
 
 ## Orders
 
@@ -51,8 +58,8 @@ The summary counts the journals listed above; attempts described only in a note 
 
 | time (UTC) | what | tx | on chain (RPC re-fetch) | journal |
 |---|---|---|---|---|
-| 2026-10-24T02:39:56.364Z | long 0.2 SOL: take-profit 105.53 (stop #2508757194024499021908), stop-loss 100.4 (stop #3154393236604333328469) | `0xcaa4baa95a79f6933fb564ad7fc51467eeaac6f96ff33328f4d03e1d83ad6402` | success @ block 31575197, 1147922 gas | p3-mcp-run-cc-journal.jsonl |
-| 2026-10-24T02:51:08.069Z | long 0.2 SOL: take-profit 105.55 (stop #3154393236604333328471), stop-loss 100.43 (stop #756316507022091618392) | `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f` | success @ block 31581911, 1525389 gas | p3-mcp-run-cc-2-journal.jsonl |
+| 2026-10-24T02:39:56.364Z | long 0.2 SOL: take-profit 105.53 (stop #2508757194024499021908), stop-loss 100.4 (stop #3154393236604333328469), 0.3 STT held until it fires or is cancelled | `0xcaa4baa95a79f6933fb564ad7fc51467eeaac6f96ff33328f4d03e1d83ad6402` | success @ block 31575197, 1147922 gas | p3-mcp-run-cc-journal.jsonl |
+| 2026-10-24T02:51:08.069Z | long 0.2 SOL: take-profit 105.55 (stop #3154393236604333328471), stop-loss 100.43 (stop #756316507022091618392), 0.3 STT held until it fires or is cancelled | `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f` | success @ block 31581911, 1525389 gas | p3-mcp-run-cc-2-journal.jsonl |
 
 ## Cancels
 
@@ -81,6 +88,7 @@ No transaction was sent for any of these. Counts are rows: some are scripted pro
 | 2026-10-24T04:09:54.516Z | plan | long 0.57 SOL | maxNotionalUsd | the position this order leaves would be $79.80 notional, above the $25 cap per market | no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room |
 | 2026-10-24T04:17:32.825Z | place | plan plan_2b867222f225 | planExpired | plan plan_2b867222f225 expired 2s ago (plans live 60s) | call plan_order again for fresh prices |
 | 2026-10-24T04:17:32.835Z | place | plan plan_2b867222f225 | planAlreadyUsed | plan plan_2b867222f225 was already used: an earlier place_order refused it (planExpired) and sent nothing | call plan_order for a new plan |
+| 2026-10-24T04:36:53.729Z | plan | long 3 SOL | minLiquidationDistancePct | liquidation would sit 12.80% from mark, closer than the 15% minimum | use a smaller size (less leverage) |
 
 ## Refusals by the exchange (`refused_by: "exchange"`)
 
@@ -96,4 +104,5 @@ The order passed pilot's policy and was sent; the exchange reverted it and the r
 - 2026-10-24T02:43:59.819Z: Attempt to provoke a natural exchange refusal through the tools: with a 0.01% (1 bp) slippage bound, the smallest that leaves any room above the touch, scripts/exchange-refusal-via-mcp.mjs made 12 plan_order and 12 place_order calls on SOL over stdio MCP; 12 orders filled (each closed again: 12 closes) and 0 were refused by the exchange. No natural exchange refusal is recorded (evidence/p3-tight-slippage-attempts-journal.jsonl).
 - 2026-10-24T02:56:04.645Z: race injected by scripts/exchange-refusal-injected.mjs: the planned limit 103.69 was lowered 5% to 98.5 in the sender before sending, standing in for the book moving between place_order's freshness check and mining. The order was unfillable by construction; no natural race. Everything else is the real tool path.
 - 2026-10-24T04:09:54.516Z: A wrong next step, fixed: the 2026-10-24T02:40:00.158Z cap refusal (0.57 SOL on top of 0.2 held) answered "reduce size to at most 0.04 SOL", a size under the SOL minimum, and the agent's plan for 0.04 SOL was then refused on minQuantity ("plan at least 0.1 SOL"). plan_order now checks the room against the minimum; the same request on the fixed code (2026-10-24T04:09:54.516Z, 0.2 SOL held) answered "no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room", and the agent planned nothing.
+- 2026-10-24T04:36:53.729Z: The liquidation rule did not bind in the runs above: at the default $25 cap this account (about 49.5 USDso) stays under 1x leverage, where the exchange reports no reachable liquidation price for a long. scripts/liquidation-rule-via-mcp.mjs planned SOL longs under a policy file that raises maxNotionalUsd to $1000, every other limit default (minLiquidationDistancePct 15). 1 SOL (2.1199x) planned ok, liquidation 55.56, 45.82% from mark; 2 SOL (4.3428x) planned ok, liquidation 80.95, 21.05% from mark; 3 SOL (6.6763x) refused: liquidation would sit 12.80% from mark, closer than the 15% minimum. Plans only, nothing was sent.
 

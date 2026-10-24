@@ -1,10 +1,12 @@
 # Pilot
 
-Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between the agent and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
+Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that sits between any agent (Claude Code, Codex CLI, any MCP client) and dreamDEX perps on Somnia testnet: it plans every opening order, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
 
 ```
 agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
 ```
+
+Built for the dreamDEX Perps Bounty, MVP track, category bots and agents.
 
 ## Demo excerpt
 
@@ -41,14 +43,14 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 | `markets` | Lists the perp markets with mark price, max leverage, minimum size, lot and tick size, funding and open interest. |
 | `account` | Reads the account live: STT for gas, USDso collateral, margin status, open positions with entry, mark and unrealized PnL, pending brackets, your policy limits and today's order count. |
 | `plan_order` | Plans a market-taking (IOC) order without sending it: max size, margin, projected liquidation price, and a verdict against your policy. An ok plan gets a short-lived one-shot `plan_id`. |
-| `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan, re-checks the policy and re-runs the liquidation and margin previews on live state. The limit price is re-derived from the live book and your slippage limit, and can only tighten. A reused `plan_id` is told what became of it (sent, refused, or unknown). If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason. |
+| `place_order` | Sends an ok plan as a real transaction. Refuses an unknown, expired, used or stale plan, re-checks the policy and re-runs the liquidation and margin previews on live state. The limit price is re-derived from the live book and your slippage limit, and can only tighten. A reused `plan_id` is told what became of it (sent, refused, expired, or unknown) for 10 minutes after the plan expires. If the exchange itself refuses, the result says `refused_by: "exchange"` with the decoded reason when the SDK can read it. |
 | `close_position` | Closes the whole position in a market from the live on-chain size. Never blocked by policy. Says when a bracket on that market is still armed (it would act on your next position there) and when something else shrank the position mid-close so the close flipped it. |
 | `bracket` | Arms a linked take-profit and stop-loss (one cancels the other) on an open position. Reduce-only, held on chain. |
 | `cancel_all` | Cancels pending brackets and any resting orders; brackets are confirmed on chain, not only from the indexer. If the journal cannot be read it still cancels what the indexer lists and says so (`journalUnreadable`). |
 | `policy` | Shows your limits. Read-only: no tool can change them. |
 | `journal` | Reads the append-only journal of every plan, refusal and transaction. |
 
-Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `markets` and `journal` still work); it never silently falls back.
+Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops every tool that reads it, including `close_position` and `account`, until you fix the file (`cancel_all`, `bracket`, `markets` and `journal` still work), with an error that names the file and what is wrong; it never silently falls back.
 
 ## Run it
 
@@ -85,7 +87,7 @@ args = ["/path/to/dreamdex-pilot/bin/pilot.mjs"]
 env_vars = ["PILOT_PRIVATE_KEY"]
 ```
 
-**MCP Inspector** (place orders from UI mode; the CLI line is for one-shot calls, see Honest limits)
+**MCP Inspector** (plan → place needs UI mode; the CLI line is for one-shot calls, see Honest limits; no Inspector-placed order is in the receipts)
 
 ```bash
 npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
@@ -103,6 +105,14 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 `node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
 
 `node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share: counts, your latest fill on the explorer, and a link back here.
+For the journals behind `DEMO.md` it prints:
+
+```text
+My AI agent's dreamDEX perps receipts (Somnia testnet, via pilot):
+9 orders opened, 9 closed, 2 brackets, 15 refused by my limits (7 rules).
+Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5
+https://github.com/edycutjong/dreamdex-pilot
+```
 
 One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because pilot's freshness check leaves almost no window for a natural one (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
 
@@ -119,6 +129,7 @@ One exchange refusal in `DEMO.md` is marked **race injected**: the limit price w
 - If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
 - A crash between a landed send and its journal row is not counted toward the daily cap.
 - Plans live in the server's memory only, so restarting the server drops them.
+- At the default $25 cap a small account stays under 1x leverage, where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
 - MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode keeps one server process while connected.
 - `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
 

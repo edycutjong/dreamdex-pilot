@@ -50,7 +50,7 @@ export const accountInfo = async (deps) => {
   const account = deps.account();
   const markets = await client.listPerpMarkets();
   if (!markets.length) throw new Error("the exchange returned no perp markets (indexer or RPC not ready); try again shortly");
-  const bank = markets[0].marginBank;
+  const bank = markets[0].marginBank; // every Hideki perp market shares one MarginBank (21 of 21 checked, as the testnet docs list)
   const [ma, stops, stt] = await Promise.all([
     client.getMarginAccount(bank, account),
     pendingStops(client, account).catch((e) => ({ error: describeError(e) })),
@@ -101,7 +101,7 @@ export const accountInfo = async (deps) => {
     marginRequirementsUsd: { initial: num(ma.imReq), maintenance: num(ma.mmReq), closeOut: num(ma.cmReq) },
     positions,
     pendingBrackets: brackets,
-    policy: { maxNotionalUsd: p.maxNotionalUsd, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, ordersSentTodayUtc: ordersToday(deps), source: p.source },
+    policy: { maxNotionalUsd: p.maxNotionalUsd, minLiquidationDistancePct: p.minLiquidationDistancePct, allowedMarkets: p.allowedMarkets, dailyOrderCap: p.dailyOrderCap, maxSlippagePct: p.maxSlippagePct, planTtlSec: p.planTtlSec, ordersSentTodayUtc: ordersToday(deps), source: p.source },
     asOfBlock: Number(ma.asOfBlock),
   };
 };

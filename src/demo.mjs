@@ -55,6 +55,12 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   const injected = byExchange.filter((e) => e.injected);
   const distinct = new Set(byPilot.flatMap((e) => e.rules ?? [])).size;
   out.push(`- Refusals by pilot's policy: **${byPilot.length}** rows (**${distinct}** distinct rules); refusals by the exchange: **${byExchange.length}**${injected.length ? ` (${injected.length} of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)` : ""}`, "");
+  // The refusal a judge should see first, before the tables: the newest one by the position cap.
+  const cap = byPilot.filter((e) => e.rules?.includes("maxNotionalUsd") && e.positionNow != null && e.positionNow !== "0").at(-1);
+  if (cap) {
+    const r = cap.refusals.find((x) => x.rule === "maxNotionalUsd");
+    out.push("## The refusal to look at first", "", `${cap.at}: with ${cap.positionNow} ${cap.market} already open, a ${cap.side} of ${cap.size} ${cap.market} (an order of $${Number(cap.notionalUsd).toFixed(2)}) was refused and nothing was sent.`, "", `- why: ${r.detail}`, `- next safe action: ${r.next}`, "");
+  }
   const tx = (list, head, line, link = true) => {
     if (!list.length) return;
     out.push(`## ${head}`, "", "| time (UTC) | what | tx | on chain (RPC re-fetch) | journal |", "|---|---|---|---|---|");
@@ -63,7 +69,7 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   };
   tx(orders, "Orders", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), filled ${e.filled}, position after ${e.positionAfter}${planned(e)}`);
   tx(closes, "Closes", (e) => `${e.direction ?? e.side} ${e.size} ${e.market} (IOC, limit ${e.limitPrice}), position after ${e.positionAfter}`);
-  tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})${e.operatorGrantTxs?.length ? `; first bracket, the SDK also sent the one-time operator grant ${e.operatorGrantTxs.join(", ")}` : ""}`, false);
+  tx(brackets, "Brackets", (e) => `${e.side} ${e.size} ${e.market}: take-profit ${e.takeProfitTrigger} (stop #${e.takeProfitStopId}), stop-loss ${e.stopLossTrigger} (stop #${e.stopLossStopId})${e.sttHeldUntilCancel != null ? `, ${e.sttHeldUntilCancel} STT held until it fires or is cancelled` : ""}${e.operatorGrantTxs?.length ? `; first bracket, the SDK also sent the one-time operator grant ${e.operatorGrantTxs.join(", ")}` : ""}`, false);
   if (cancels.length) {
     out.push("## Cancels", "", "| time (UTC) | what | tx | on chain (RPC re-fetch) | journal |", "|---|---|---|---|---|");
     for (const e of cancels) for (const t of e.txs) out.push(`| ${cell(e.at)} | ${cell(t.what)} | \`${t.tx}\` | ${cell(rc(t.tx))} | ${cell(e._src)} |`);

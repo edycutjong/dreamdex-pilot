@@ -16,6 +16,8 @@ describe("account", () => {
     expect(a.positions).toHaveLength(1);
     expect(a.positions[0]).toMatchObject({ market: "SOL", side: "long", size: "0.3", avgEntryPrice: "100", markPrice: "102.51", notionalUsd: 15.5, unrealizedPnlUsd: 1.5 });
     expect(a.policy.ordersSentTodayUtc).toBe(0);
+    // every limit plan_order applies is on account, not three of six
+    expect(Object.keys(a.policy)).toEqual(expect.arrayContaining(["maxNotionalUsd", "minLiquidationDistancePct", "allowedMarkets", "dailyOrderCap", "maxSlippagePct", "planTtlSec"]));
   });
   it("lists no position when flat and says when pending brackets cannot be read", async () => {
     const { deps } = makeDeps();
@@ -330,6 +332,18 @@ describe("DEMO.md", () => {
     expect(card.trim().endsWith(REPO)).toBe(true);
     expect(card.replace(/https:\/\/\S+/g, "x".repeat(23)).trim().length).toBeLessThanOrEqual(280);
     expect(renderCard([])).not.toContain("Latest fill");
+  });
+
+  it("puts the newest position-cap refusal first, and shows the STT a bracket holds", () => {
+    const md = renderDemo([
+      { at: "2026-10-24T07:00:00.000Z", kind: "refusal", refused_by: "pilot-policy", stage: "plan", market: "SOL", side: "long", size: "0.57", notionalUsd: 59.0748, positionNow: "0.2", rules: ["maxNotionalUsd"], refusals: [{ rule: "maxNotionalUsd", detail: "the position this order leaves would be $79.80 notional", next: "no SOL order fits under the cap" }] },
+      { at: "2026-10-24T07:01:00.000Z", kind: "bracket", side: "long", size: "0.2", market: "SOL", takeProfitTrigger: "105", takeProfitStopId: "1", stopLossTrigger: "99", stopLossStopId: "2", sttHeldUntilCancel: 0.3, tx: "0x" + "4".repeat(64) },
+    ]);
+    expect(md.indexOf("## The refusal to look at first")).toBeLessThan(md.indexOf("## Brackets"));
+    expect(md).toContain("with 0.2 SOL already open, a long of 0.57 SOL (an order of $59.07) was refused and nothing was sent.");
+    expect(md).toContain("- next safe action: no SOL order fits under the cap");
+    expect(md).toContain("0.3 STT held until it fires or is cancelled");
+    expect(renderDemo(rows)).not.toContain("The refusal to look at first"); // only a cap refusal with a position open qualifies
   });
 
   it("marks a tx that was not re-fetched instead of inventing a receipt", () => {

@@ -38,7 +38,8 @@ describe("loadPolicy", () => {
   it("rejects an invalid file instead of silently using defaults", () => {
     const f = join(dir, "bad.json");
     writeFileSync(f, JSON.stringify({ maxNotionalUsd: -1 }));
-    expect(() => loadPolicy(f)).toThrow();
+    expect(() => loadPolicy(f)).toThrow(/^policy file .* is invalid \(.+\); fix it, pilot does not fall back to defaults$/);
+    try { loadPolicy(f); } catch (e) { expect(e.pilotUser).toBe(true); } // the agent sees this sentence, not a raw ZodError
   });
   it("rejects unknown keys (a typo must not silently drop a limit)", () => {
     const f = join(dir, "typo.json");

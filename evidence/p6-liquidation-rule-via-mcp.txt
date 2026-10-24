@@ -1,0 +1,167 @@
+# scripts/liquidation-rule-via-mcp.mjs (scripted MCP stdio client, no LLM) on HEAD 6be3c92 + uncommitted P6 r4 fixes: policy file {"maxNotionalUsd": 1000} (all other limits default), SOL long plans of growing size until the liquidation rule refuses. Plans only: nothing is sent.
+# journal rows: evidence/p6-liquidation-rule-journal.jsonl
+
+{
+  "tool": "policy",
+  "args": {},
+  "isError": false,
+  "body": {
+    "maxNotionalUsd": 1000,
+    "minLiquidationDistancePct": 15,
+    "allowedMarkets": [
+      "BTC",
+      "ETH",
+      "SOL"
+    ],
+    "dailyOrderCap": 20,
+    "maxSlippagePct": 1,
+    "planTtlSec": 60,
+    "source": "/var/folders/hy/h4_prwdj11d1p_gf5kr77k5r0000gn/T/pilot-liq-Je1N8B/policy.json",
+    "ordersSentTodayUtc": 0,
+    "editableBy": "the user only (edit the file; there is no tool for it)"
+  }
+}
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "1"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "verdict": "ok",
+    "plan_id": "plan_14a5a6effd0c",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "1",
+    "limitPrice": "103.68",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.65",
+      "ask": "102.66"
+    },
+    "markPrice": "102.5339913585105",
+    "notionalUsd": 103.68,
+    "positionNow": "0",
+    "positionAfter": "1",
+    "positionNotionalAfterUsd": 103.68,
+    "marginLockUsd": 6.33,
+    "projectedLeverageX": 2.1199,
+    "liquidationPrice": "55.557703589743589744",
+    "liquidationDistancePct": 45.82,
+    "exchangeMaxSize": "7.82",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 1000,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_14a5a6effd0c within 60s to send it"
+  }
+}
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "2"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "verdict": "ok",
+    "plan_id": "plan_483dc1fab44b",
+    "expiresInSec": 60,
+    "market": "SOL",
+    "side": "long",
+    "size": "2",
+    "limitPrice": "103.68",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.64",
+      "ask": "102.66"
+    },
+    "markPrice": "102.5339913585105",
+    "notionalUsd": 207.36,
+    "positionNow": "0",
+    "positionAfter": "2",
+    "positionNotionalAfterUsd": 207.36,
+    "marginLockUsd": 12.66,
+    "projectedLeverageX": 4.3428,
+    "liquidationPrice": "80.948082564102564103",
+    "liquidationDistancePct": 21.05,
+    "exchangeMaxSize": "7.82",
+    "limitedBy": "collateral",
+    "policy": {
+      "maxNotionalUsd": 1000,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "next": "call place_order with plan_id plan_483dc1fab44b within 60s to send it"
+  }
+}
+{
+  "tool": "plan_order",
+  "args": {
+    "market": "SOL",
+    "side": "long",
+    "size": "3"
+  },
+  "isError": false,
+  "body": {
+    "network": "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)",
+    "verdict": "refused",
+    "refused_by": "pilot-policy",
+    "market": "SOL",
+    "side": "long",
+    "size": "3",
+    "limitPrice": "103.68",
+    "orderType": "IOC (fills now or not at all, never rests)",
+    "touch": {
+      "bid": "102.64",
+      "ask": "102.66"
+    },
+    "markPrice": "102.5339913585105",
+    "notionalUsd": 311.04,
+    "positionNow": "0",
+    "positionAfter": "3",
+    "positionNotionalAfterUsd": 311.04,
+    "marginLockUsd": 18.99,
+    "projectedLeverageX": 6.6763,
+    "liquidationPrice": "89.411542222222222223",
+    "liquidationDistancePct": 12.8,
+    "exchangeMaxSize": "7.82",
+    "limitedBy": "collateral",
+    "refusals": [
+      {
+        "rule": "minLiquidationDistancePct",
+        "detail": "liquidation would sit 12.80% from mark, closer than the 15% minimum",
+        "next": "use a smaller size (less leverage)"
+      }
+    ],
+    "policy": {
+      "maxNotionalUsd": 1000,
+      "minLiquidationDistancePct": 15,
+      "allowedMarkets": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
+      "dailyOrderCap": 20
+    },
+    "journaled": "2026-10-24T04:36:53.729Z"
+  }
+}

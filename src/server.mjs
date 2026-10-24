@@ -50,7 +50,7 @@ export const createServer = (deps) => {
     {
       title: "Show the trading account",
       description:
-        "Show this account's state read live from chain: STT for gas, USDso collateral (equity, unlocked, locked as margin), margin status, open positions with entry, mark and unrealized PnL, pending take-profit/stop-loss brackets, and the policy headroom. Call it before sizing an order and after any trade.",
+        "Show this account's state read live from chain: STT for gas, USDso collateral (equity, unlocked, locked as margin), margin status, open positions with entry, mark and unrealized PnL, pending take-profit/stop-loss brackets, and your policy limits with today's order count. Call it before sizing an order and after any trade.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -62,7 +62,7 @@ export const createServer = (deps) => {
     {
       title: "Plan a perp order (no transaction)",
       description:
-        "Plan a market-taking (IOC) perp order WITHOUT sending it: reads the exchange's max order size, margin preview and projected liquidation price, checks them against the user's policy (allowed markets, max notional of the position the order leaves in that market, min liquidation distance, daily cap), and returns the numbers plus a verdict. An ok plan gets a short-lived one-shot plan_id for place_order. Give exactly one of size (base units, e.g. \"0.1\" SOL) or notional_usd. Show the user the liquidation price before placing.",
+        "Plan a market-taking (IOC) perp order WITHOUT sending it: reads the exchange's max order size, margin preview and projected liquidation price, checks them against the user's policy (allowed markets, max notional of the position the order leaves in that market, min liquidation distance, daily cap), and returns the numbers plus a verdict. An ok plan gets a short-lived one-shot plan_id for place_order. Give exactly one of size (base units, e.g. \"0.1\" SOL) or notional_usd. Show the user the liquidation price before placing, or liquidationNote when there is none (small sizes have no reachable liquidation).",
       inputSchema: {
         market: z.string().min(1).max(16).describe("Base symbol, e.g. BTC, ETH, SOL"),
         side: z.enum(["long", "short"]),
