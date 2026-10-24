@@ -79,7 +79,7 @@ npm ci
 npm test
 ```
 
-**Try it with no key.** Reads work without a key when `PILOT_ACCOUNT` names a public address; this one is the demo burner (the `from` of every transaction in `DEMO.md`). The MCP Inspector does not hand your shell's environment to the server, so values go in with `-e`. The second call is refused by the default $25 cap, with nothing sent (`evidence/p9-keyless-inspector.txt`):
+**Try it with no key.** Reads work without a key when `PILOT_ACCOUNT` names a public address; this one is the demo burner (the `from` of every transaction in `DEMO.md`). The MCP Inspector does not hand your shell's environment to the server, so values go in with `-e`. The second call is refused by the default $25 cap, with nothing sent (`evidence/p9-keyless-mcp-cli.txt`):
 
 ```bash
 npx @modelcontextprotocol/inspector --cli -e PILOT_ACCOUNT=0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b node bin/pilot.mjs --method tools/call --tool-name account
@@ -108,7 +108,7 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 claude mcp add pilot -- node "$PWD/bin/pilot.mjs"
 ```
 
-For a trading session with pilot's tools only (no shell, no file tools; `--tools ""` goes last). Checked with a throwaway key: the agent listed only pilot's nine tools, could not read the key, and could not write the policy file (`evidence/p9-restricted-claude-code.txt`):
+For a trading session with pilot's tools only (no shell, no file tools; `--tools ""` goes last). Checked with a throwaway key: the agent listed only pilot's nine tools, could not read the key, and could not write the policy file (`evidence/p9-restricted-cc.txt`):
 
 ```bash
 mkdir -p ~/.pilot && printf '{"mcpServers":{"pilot":{"command":"node","args":["%s/bin/pilot.mjs"]}}}\n' "$PWD" > ~/.pilot/claude-mcp.json

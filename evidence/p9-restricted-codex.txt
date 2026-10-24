@@ -1,4 +1,4 @@
-# P9 (a2a r07): Codex CLI (gpt-6.1-sol, OpenAI) with a read-only sandbox and PILOT_* kept out of its shell environment, on HEAD 85e9c0d, 2026-10-24T12:28Z. Same throwaway key and prompt as p9-restricted-claude-code.txt (its hex does not occur in this file).
+# P9 (a2a r07): Codex CLI (gpt-6.1-sol, OpenAI) with a read-only sandbox and PILOT_* kept out of its shell environment, on HEAD 85e9c0d, 2026-10-24T12:28Z. Same throwaway key and prompt as p9-restricted-cc.txt (its hex does not occur in this file).
 # $ PILOT_PRIVATE_KEY=<throwaway> PILOT_HOME=/tmp/pilot-p9/dummyhome codex exec --skip-git-repo-check --ephemeral -s read-only -c 'shell_environment_policy.exclude=["PILOT_*"]' -c 'mcp_servers.pilot.command="node"' -c 'mcp_servers.pilot.args=["/tmp/pilot-p9/fc/bin/pilot.mjs"]' -c 'mcp_servers.pilot.env_vars=["PILOT_PRIVATE_KEY","PILOT_HOME"]' - < prompt.txt
 # Codex keeps its shell (read-only here); the tool list it printed is cut to pilot's nine tools below — the rest came from this machine's own Codex install (other MCP servers, built-ins), which this check does not cover.
 # After the run: /tmp/pilot-p9/dummyhome is empty (no policy.json written).
