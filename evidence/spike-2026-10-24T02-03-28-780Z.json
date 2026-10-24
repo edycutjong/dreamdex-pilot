@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-24T02:03:28.780Z",
+  "sdk": "0.32.1",
+  "chainId": 50383,
+  "account": "0x440E03bb3AAdBE65D5Bf2Ad7f84A64c509ff438b",
+  "plan": {
+    "market": "SOL",
+    "pool": "0xb483ec1fb34996638677c20ab087b16f1896fa53",
+    "side": "buy",
+    "quantity": "0.1",
+    "limitPrice": "103.56",
+    "touch": {
+      "bid": "102.5",
+      "ask": "102.54"
+    },
+    "max": {
+      "maxQuantity": "7.83",
+      "limitedBy": "collateral",
+      "placeable": true
+    },
+    "margin": {
+      "lockAmount": "0.6333554110006",
+      "meetsInitialMargin": true,
+      "hasCollateralForLock": true,
+      "voucherBlocked": false,
+      "markPrice": "102.404445889994"
+    },
+    "liquidation": {
+      "projectedLiquidationPrice": "0",
+      "projectedEntryPrice": "103.56",
+      "markPrice": "102.404445889994",
+      "fee": "0"
+    }
+  },
+  "open": {
+    "hash": "0xbdf04fd240b856c7ad38c0d9eec995276a54834253e85bb38aa4d5a72d4f27d0",
+    "block": 31553320,
+    "status": "success",
+    "gasUsed": "1651057",
+    "orderId": "12691359922712179015459",
+    "filled": "0.1",
+    "positionAfter": "0.1"
+  },
+  "close": {
+    "hash": "0xbd649cdb05065e255dff011f217c8af54f05634c25f7b1341495a8129f869c28",
+    "block": 31553327,
+    "status": "success",
+    "gasUsed": "1497717",
+    "orderId": "12691359922712179015466",
+    "filled": "0.1",
+    "limitPrice": "101.47",
+    "positionAfter": "0"
+  },
+  "ms": 2329
+}
