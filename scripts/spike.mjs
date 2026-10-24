@@ -83,4 +83,5 @@ const file = `evidence/spike-${out.at.replace(/[:.]/g, "-")}.json`;
 writeFileSync(file, json(out) + "\n");
 console.log(json(out));
 console.error(`wrote ${file}`);
-process.exit(0);
+// Exit non-zero when the close left a residual position, so a wrapper never reads it as clean.
+process.exit(posAfterClose.size === 0n ? 0 : 1);
