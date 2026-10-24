@@ -66,6 +66,10 @@ describe("plan_order", () => {
     expect(await refused((s) => { s.max = { ...s.max, placeable: false }; })).toEqual(["exchangeMaxSize"]));
   it("refuses when the margin preview fails", async () =>
     expect(await refused((s) => { s.margin = { ...s.margin, hasCollateralForLock: false }; })).toEqual(["margin"]));
+  it("refuses when the liquidation preview is not priceable (unknown is not safe)", async () =>
+    expect(await refused((s) => { s.liq = { priceable: false }; })).toEqual(["liquidationUnknown"]));
+  it("refuses when the margin preview is not priceable", async () =>
+    expect(await refused((s) => { s.margin = { priceable: false }; })).toEqual(["marginUnknown"]));
   it("refuses below the market minimum", async () => expect(await refused(null, { size: "0.05" })).toEqual(["minQuantity"]));
   it("refuses at the daily order cap", async () =>
     expect(await refused((s, d) => { for (let i = 0; i < 20; i++) d.journal.append({ kind: "order", sent: true, action: "open", at: new Date(s.clock).toISOString() }); })).toEqual(["dailyOrderCap"]));
@@ -157,7 +161,57 @@ describe("place_order", () => {
     expect(r.ok).toBe(false);
     expect(r.refused_by).toBeUndefined();
     expect(r.error).toMatch(/RpcError: fetch failed/);
-    expect(journal.read().at(-1)).toMatchObject({ kind: "error", sent: false });
+    // No hash does not prove nothing went out: status unknown, counted toward the cap, no "retry".
+    expect(r).toMatchObject({ sent: "unknown" });
+    expect(r.next).toMatch(/status unknown/);
+    expect(journal.read().at(-1)).toMatchObject({ kind: "error", sent: "unknown" });
+    expect(journal.ordersToday(new Date(state.clock))).toBe(1);
+  });
+  it("says nothing was sent only when the sender proved it", async () => {
+    const { deps, state, journal } = makeDeps();
+    const { plan_id } = await plan(deps);
+    state.sendError = Object.assign(new Error("PILOT_PRIVATE_KEY is not set"), { pilotNotSent: true });
+    expect(await placeOrder(deps, { plan_id })).toMatchObject({ ok: false, sent: false });
+    expect(journal.ordersToday(new Date(state.clock))).toBe(0);
+  });
+  it("sends a plan once even when two place_order calls race", async () => {
+    const { deps, state } = makeDeps();
+    const { plan_id } = await plan(deps);
+    const rs = await Promise.all([placeOrder(deps, { plan_id }), placeOrder(deps, { plan_id })]);
+    expect(state.sends).toHaveLength(1);
+    expect(rs.map((r) => r.ok ? "sent" : r.rule).sort()).toEqual(["planAlreadyUsed", "sent"]);
+  });
+  it("counts in-flight sends toward the daily cap", async () => {
+    const { deps, state, policy } = makeDeps();
+    const a = await plan(deps);
+    const b = await plan(deps);
+    policy.dailyOrderCap = 1;
+    const rs = await Promise.all([placeOrder(deps, { plan_id: a.plan_id }), placeOrder(deps, { plan_id: b.plan_id })]);
+    expect(state.sends).toHaveLength(1);
+    expect(rs.find((r) => !r.ok).rule).toBe("dailyOrderCap");
+  });
+  it("applies a policy the user tightened after the plan", async () => {
+    const { deps, state, policy } = makeDeps();
+    const a = await plan(deps);
+    const b = await plan(deps);
+    policy.allowedMarkets = ["BTC"];
+    await placeRefused(deps, state, a.plan_id, "allowedMarkets");
+    policy.allowedMarkets = ["SOL"];
+    policy.maxNotionalUsd = 5;
+    await placeRefused(deps, state, b.plan_id, "maxNotionalUsd");
+  });
+  it("re-applies the liquidation minimum from the plan's own preview", async () => {
+    const { deps, state, policy } = makeDeps();
+    state.liq = { ...state.liq, projectedLiquidationPrice: px(82) }; // 20% from mark: ok at 15%
+    const { plan_id } = await plan(deps);
+    policy.minLiquidationDistancePct = 25;
+    await placeRefused(deps, state, plan_id, "minLiquidationDistancePct");
+  });
+  it("refuses as stale when the book emptied", async () => {
+    const { deps, state } = makeDeps();
+    const { plan_id } = await plan(deps);
+    state.ask = 0n;
+    await placeRefused(deps, state, plan_id, "stalePlan");
   });
 });
 
@@ -186,6 +240,24 @@ describe("close_position", () => {
     for (let i = 0; i < 20; i++) journal.append({ kind: "order", sent: true, action: "open" });
     state.pos = sol(0.1);
     expect((await closePosition(deps, { market: "DOGE" })).ok).toBe(true);
+  });
+  it("runs one close per market at a time", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1);
+    const rs = await Promise.all([closePosition(deps, { market: "SOL" }), closePosition(deps, { market: "SOL" })]);
+    expect(state.sends).toHaveLength(1);
+    expect(rs.find((r) => !r.ok).reason).toMatch(/already in flight/);
+    expect(state.pos).toBe(0n); // never flipped short
+  });
+  it("refuses to close into an empty book", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1);
+    state.bid = 0n;
+    expect(await closePosition(deps, { market: "SOL" })).toMatchObject({ ok: false, positionBefore: "0.1" });
+    expect(state.sends).toHaveLength(0);
+  });
+  it("errors on an unknown market", async () => {
+    await expect(closePosition(makeDeps().deps, { market: "NOPE" })).rejects.toThrow(/No perp market named NOPE/);
   });
   it("reports an exchange refusal on close", async () => {
     const { deps, state } = makeDeps();
