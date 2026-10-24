@@ -2,6 +2,7 @@
 // Spawns the real server over stdio against Somnia Hideki and calls the read-only tools plus plan_order
 // (which sends nothing). Needs no key: PILOT_ACCOUNT is a public address. Real orders are exercised by
 // the recorded MCP client runs in evidence/, not by CI.
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +18,7 @@ describe.skipIf(!live)("live testnet over stdio", () => {
     const env = { ...process.env, PILOT_ACCOUNT: ACCOUNT, PILOT_JOURNAL: join(mkdtempSync(join(tmpdir(), "pilot-it-")), "journal.jsonl") };
     delete env.PILOT_PRIVATE_KEY;
     const c = new Client({ name: "integration", version: "0" });
-    await c.connect(new StdioClientTransport({ command: "node", args: [new URL("../bin/pilot.mjs", import.meta.url).pathname], env, stderr: "ignore" }));
+    await c.connect(new StdioClientTransport({ command: "node", args: [fileURLToPath(new URL("../bin/pilot.mjs", import.meta.url))], env, stderr: "ignore" }));
     return c;
   };
   const call = async (c, name, args = {}) => JSON.parse((await c.callTool({ name, arguments: args })).content[0].text);

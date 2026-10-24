@@ -2,7 +2,7 @@
 
 An MCP server that lets an AI agent trade dreamDEX perps on Somnia testnet: it plans every order first, shows the liquidation price, refuses what breaks your limits, and writes a receipt for each transaction.
 
-Testnet only (Somnia Hideki, chain 50383). Use a burner key, never a wallet that holds anything real.
+Testnet only: Somnia Hideki (chain 50383), the testnet chain dreamDEX perps run on and that the app shows as the Tokyo region, i.e. the bounty's "Somnia Tokyo testnet". Use a burner key, never a wallet that holds anything real.
 
 ## Tools
 

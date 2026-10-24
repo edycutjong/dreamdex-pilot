@@ -5,6 +5,7 @@
 // to the real server; a filled attempt is closed again. Stops at the first exchange refusal.
 // Result 2026-10-24 (SOL, 12 attempts): all 12 filled and none was refused, so no natural exchange refusal occurred (evidence/p3-tight-slippage-attempts-journal.jsonl).
 //   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/exchange-refusal-via-mcp.mjs [market] [attempts]
+import { fileURLToPath } from "node:url";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +16,7 @@ const [market = "SOL", attempts = "12"] = process.argv.slice(2);
 const policy = join(tmpdir(), "pilot-tight-policy.json");
 writeFileSync(policy, JSON.stringify({ maxSlippagePct: 0.01 }));
 const transport = new StdioClientTransport({
-  command: "node", args: [new URL("../bin/pilot.mjs", import.meta.url).pathname],
+  command: "node", args: [fileURLToPath(new URL("../bin/pilot.mjs", import.meta.url))],
   env: { ...process.env, PILOT_POLICY: policy }, stderr: "ignore",
 });
 const client = new Client({ name: "exchange-refusal-probe", version: "0" });

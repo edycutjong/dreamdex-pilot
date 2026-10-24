@@ -8,7 +8,7 @@ import { accountInfo, armedBrackets, bracket, cancelAll } from "./tools.mjs";
 import { describeError } from "./exchange-errors.mjs";
 
 export const VERSION = "0.1.0";
-const NETWORK = "Somnia Hideki testnet (chain 50383)";
+const NETWORK = "Somnia Hideki testnet (chain 50383; dreamDEX Tokyo region)";
 
 const text = (v) => ({ content: [{ type: "text", text: typeof v === "string" ? v : json(v) }] });
 const fail = (msg) => ({ isError: true, content: [{ type: "text", text: typeof msg === "string" ? msg : json(msg) }] });

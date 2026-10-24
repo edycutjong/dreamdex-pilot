@@ -4,6 +4,7 @@
 // --bracket it also arms a bracket before the close (close_position then reports it still armed)
 // and removes it with cancel_all afterwards.
 //   PILOT_PRIVATE_KEY=... PILOT_JOURNAL=... node scripts/roundtrip-via-mcp.mjs [market] [size] [--bracket]
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -11,7 +12,7 @@ const args = process.argv.slice(2);
 const withBracket = args.includes("--bracket");
 const [market = "SOL", size = "0.1"] = args.filter((a) => a !== "--bracket");
 const transport = new StdioClientTransport({
-  command: "node", args: [new URL("../bin/pilot.mjs", import.meta.url).pathname], env: process.env, stderr: "ignore",
+  command: "node", args: [fileURLToPath(new URL("../bin/pilot.mjs", import.meta.url))], env: process.env, stderr: "ignore",
 });
 const client = new Client({ name: "roundtrip-via-mcp", version: "0" });
 await client.connect(transport);

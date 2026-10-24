@@ -112,6 +112,15 @@ describe("cancel_all", () => {
     expect(state.cancelCalls[0]).toEqual(["stops", { registry: SOL.stopRegistry, orderIds: ["11", "12"], gas: 20_000_000n }]);
     expect(journal.read().at(-1)).toMatchObject({ kind: "cancel", sent: true });
   });
+  it("a cancel that came back without a receipt is reported unconfirmed, never as done", async () => {
+    const { deps, state } = longSol();
+    stopsOn(state);
+    const chain = { ...deps.chain, cancelStops: async (p) => { state.cancelCalls.push(["stops", p]); return { hash: `0x${"c".repeat(64)}` }; } };
+    const r = await cancelAll({ ...deps, chain }, { market: "SOL" });
+    expect(r.cancelledStops).toEqual([]);
+    expect(JSON.stringify(r.failures)).toMatch(/without a receipt, so it is unconfirmed/);
+    expect(r.nothingToCancel).toBe(false);
+  });
   it("still cancels the indexer's brackets when the journal has a corrupt line, and says so", async () => {
     const { deps, state, journal } = longSol();
     stopsOn(state);

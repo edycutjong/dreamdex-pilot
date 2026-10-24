@@ -290,7 +290,9 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
       return (journalRows = []);
     }
   };
-  const success = (r) => (r.receipt?.status ?? "success") === "success";
+  // Only a receipt that says success counts: a cancel that came back without one is unconfirmed, not done.
+  const success = (r) => r.receipt?.status === "success";
+  const notDone = (r) => Object.assign(new Error(r.receipt ? `the cancel tx ${r.hash} did not succeed (${r.receipt.status})` : `the cancel tx ${r.hash} came back without a receipt, so it is unconfirmed: check account before relying on it`), { txHash: r.hash });
   for (const mk of target) {
     if (!mk.stopRegistry) continue;
     let live;
@@ -304,7 +306,7 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
     const ids = live.map((s) => s.id);
     try {
       const r = await deps.chain.cancelStops({ registry: mk.stopRegistry, orderIds: ids, gas: 20_000_000n });
-      if (!success(r)) throw Object.assign(new Error(`the cancel tx ${r.hash} did not succeed (${r.receipt?.status})`), { txHash: r.hash });
+      if (!success(r)) throw notDone(r);
       result.cancelledStops.push(...ids.map((id) => ({ market: mk.baseSymbol, id })));
       result.txs.push({ what: `${ids.length} stop(s) on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
     } catch (e) {
@@ -315,7 +317,7 @@ const cancelLocked = async (deps, { client, account, target, base }) => {
     try {
       const r = await deps.chain.cancelAll(mk.poolAddress);
       if (!r.sent) continue;
-      if (!success(r)) throw Object.assign(new Error(`the cancel tx ${r.hash} did not succeed (${r.receipt?.status})`), { txHash: r.hash });
+      if (!success(r)) throw notDone(r);
       result.cancelledOrders.push(...r.orderIds.map((id) => ({ market: mk.baseSymbol, id: id.toString() })));
       result.txs.push({ what: `resting orders on ${mk.baseSymbol}`, tx: r.hash, status: r.receipt?.status ?? null });
     } catch (e) {
