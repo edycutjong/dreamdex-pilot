@@ -89,10 +89,15 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   else quantity = floorTo((parseUnits(Number(notionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
 
   const capQty = floorTo((parseUnits(Number(policy.maxNotionalUsd).toFixed(q), q) * 10n ** BigInt(mk.baseDecimals)) / price, lot);
-  const policyFacts = (dist, notional, room = capQty) => ({
+  // `leaning` > 0: the position already leans the order's way, so reducing it is what frees room.
+  const policyFacts = (dist, notional, room = capQty, leaning = 0n) => ({
     market: mk.baseSymbol,
     notionalUsd: notional,
     maxSizeUnderCap: `${u.qty(room > 0n ? room : 0n)} ${mk.baseSymbol}`,
+    // Room under the cap that is below the market minimum is no next step at all: say no order fits.
+    capNext: room < minQ
+      ? `no ${mk.baseSymbol} order fits under the cap: the room left is ${u.qty(room > 0n ? room : 0n)} ${mk.baseSymbol}, below the ${mk.baseSymbol} minimum ${u.qty(minQ)}; ${leaning > 0n ? `close_position or a reducing order frees room` : `pick another market or raise maxNotionalUsd in policy.json yourself`}`
+      : undefined,
     liquidationDistancePct: dist,
     ordersToday: ordersToday(deps),
   });
@@ -127,7 +132,7 @@ export const planOrder = async (deps, { market, side, size, notionalUsd }) => {
   const liqPrice = liq?.priceable ? liq.projectedLiquidationPrice : null;
   const dist = liquidationDistancePct(liqPrice, mark);
 
-  const refusals = evaluate(policy, policyFacts(dist, exposure, capQty - sameSide));
+  const refusals = evaluate(policy, policyFacts(dist, exposure, capQty - sameSide, sameSide));
   // A preview the chain could not price is unknown, not safe: never let it read as "no liquidation".
   if (!liq?.priceable || mark === 0n)
     refusals.push({ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview for this order", next: "plan again shortly; check markets for a mark price" });

@@ -75,8 +75,23 @@ describe("plan_order", () => {
     state.pos = sol(0.2); // $20.7 long already
     const r = await plan(deps); // +0.1 -> 0.3 SOL = $31
     expect(r.refusals.map((x) => x.rule)).toEqual(["maxNotionalUsd"]);
-    expect(r.refusals[0].next).toMatch(/0\.04 SOL/); // 0.24 cap - 0.2 held
+    // 0.24 cap - 0.2 held = 0.04 SOL of room, under the 0.1 SOL minimum: no size is offered (a live run once offered 0.04).
+    expect(r.refusals[0].next).toBe("no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room");
     expect(r).toMatchObject({ positionNow: "0.2", positionAfter: "0.3" });
+  });
+  it("offers the room under the cap as the next size when it is at least the market minimum", async () => {
+    const { deps, state } = makeDeps();
+    state.pos = sol(0.1); // 0.24 cap - 0.1 held = 0.14 SOL of room
+    const r = await plan(deps, { size: "0.2" });
+    expect(r.refusals.map((x) => x.rule)).toEqual(["maxNotionalUsd"]);
+    expect(r.refusals[0].next).toBe("reduce size to at most 0.14 SOL");
+  });
+  it("says no order fits, without blaming a position, when the cap itself is below the market minimum", async () => {
+    const { deps } = makeDeps();
+    deps.policy().maxNotionalUsd = 5; // 5 / 103.54 = 0.048 SOL < 0.1 minimum
+    const r = await plan(deps);
+    expect(r.refusals.map((x) => x.rule)).toEqual(["maxNotionalUsd"]);
+    expect(r.refusals[0].next).toMatch(/^no SOL order fits under the cap: the room left is 0\.04 SOL, below the SOL minimum 0\.1; pick another market or raise maxNotionalUsd/);
   });
   it("lets an order that reduces exposure through", async () => {
     const { deps, state } = makeDeps();
