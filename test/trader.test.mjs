@@ -201,6 +201,19 @@ describe("place_order", () => {
     expect(await placeOrder({ ...deps, send: queued(() => {}) }, { plan_id: p3.plan_id })).toMatchObject({ ok: true }); // nothing changed: it sends
     expect(state.sends).toHaveLength(1);
   });
+  it("re-runs the liquidation preview at broadcast: an order on another market that went first can move it (one shared margin bank)", async () => {
+    const { deps, state } = makeDeps();
+    state.liq = { ...state.liq, projectedLiquidationPrice: px(82) }; // 20% from mark when planned and at place
+    const queued = (wait) => async (o, check) => { wait(); await check(); return deps.send(o); };
+    const p1 = await plan(deps);
+    const r = await placeOrder({ ...deps, send: queued(() => (state.liq = { ...state.liq, projectedLiquidationPrice: px(92) })) }, { plan_id: p1.plan_id }); // ~10% once the other write landed
+    expect(r).toMatchObject({ ok: false, rule: "minLiquidationDistancePct", stage: "send", sent: false });
+    state.liq = { ...state.liq, projectedLiquidationPrice: px(82) };
+    const p2 = await plan(deps);
+    const r2 = await placeOrder({ ...deps, send: queued(() => (state.liq = { ...state.liq, priceable: false })) }, { plan_id: p2.plan_id });
+    expect(r2).toMatchObject({ ok: false, rule: "liquidationUnknown", stage: "send", sent: false }); // unpriceable at broadcast: not sent
+    expect(state.sends).toHaveLength(0);
+  });
   it("re-checks a short against the cap at the live top bid: a bid that rose since the plan can push it over", async () => {
     const { deps, state } = makeDeps({ policy: () => ({ ...DEFAULT_POLICY, maxNotionalUsd: 24.5, source: "test" }) });
     state.bid = px(100);

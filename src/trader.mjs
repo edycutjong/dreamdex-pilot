@@ -209,7 +209,9 @@ const refuse = (deps, rule, detail, next, extra = {}) => refuseAll(deps, [{ rule
 // exists, and one order per market at a time, open or close (a close is not reduce-only on
 // chain, so two parallel closes sized from the same read would flip the position, and an open
 // racing a close would be sized against a position about to change).
-export const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set(), unjournaled: [] });
+// `unjournaledStops`: brackets that landed but whose journal row failed to write, so cancel_all and
+// account still look them up before the indexer lists them.
+export const inflight = (deps) => (deps.inflight ??= { opens: 0, markets: new Set(), unjournaled: [], unjournaledStops: [] });
 // Opens sent today (UTC) for the daily cap: the journal's count plus any open whose journal row
 // failed to write after it landed (kept in memory as its UTC day, so the cap still sees it).
 export const ordersToday = (deps) => {
@@ -339,10 +341,10 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
   s.opens++;
   s.markets.add(raw.symbol);
   try {
-    let touch, pos, liq, margin;
+    let touch, pos, liq, margin, order;
     try {
       const ref = { pool: raw.pool, marginBank: raw.marginBank, account: deps.account() };
-      const order = { ...ref, isBid: raw.isBid, quantity: raw.quantity, price: raw.price };
+      order = { ...ref, isBid: raw.isBid, quantity: raw.quantity, price: raw.price };
       [touch, pos, liq, margin] = await Promise.all([
         readTouch(deps.client(), { id: raw.id, poolAddress: raw.pool }),
         deps.client().getPerpPosition(ref),
@@ -389,9 +391,11 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
     const price = raw.isBid ? (limitNow < raw.price ? limitNow : raw.price) : limitNow > raw.price ? limitNow : raw.price;
     // Checked again inside the writer queue, immediately before the broadcast: a write on another
     // market may have held the writer, and the plan must not go out after its expiry or under a
-    // policy the user tightened meanwhile. (The exposure and liquidation figures are the live ones
-    // read above; within this server no other order can change this market's position.)
-    const check = () => {
+    // policy the user tightened meanwhile. The liquidation preview is re-run too: every market
+    // shares one margin bank, so an order on another market that went first can move this one's
+    // liquidation price. (The exposure is the live one read above; within this server no other
+    // order can change this market's position.)
+    const check = async () => {
       let now;
       let found;
       if (deps.now() > p.expiresAt) found = [{ rule: "planExpired", detail: `plan ${plan_id} expired while it waited for the writer (another transaction was being sent first)`, next: "call plan_order again for fresh prices" }];
@@ -401,8 +405,19 @@ const placeClaimed = async (deps, { plan_id, p, policy, s }) => {
         } catch (e) {
           found = [{ rule: "policyUnreadable", detail: describeError(e), next: "fix the policy file, then plan again" }];
         }
-        found ??= evaluate(now, { market: raw.symbol, notionalUsd: exposure, liquidationDistancePct: liveDist, ordersToday: ordersToday(deps) + s.opens - 1 });
       }
+      let dist = liveDist;
+      if (!found) {
+        try {
+          const l = await deps.client().previewPerpLiquidationPrice(order);
+          const m = BigInt(l?.markPrice ?? mark);
+          if (!l?.priceable || m === 0n) found = [{ rule: "liquidationUnknown", detail: "the exchange could not price a liquidation preview right before the broadcast", next: "call plan_order again shortly" }];
+          else dist = liquidationDistancePct(l.projectedLiquidationPrice, m);
+        } catch (e) {
+          found = [{ rule: "liquidationUnknown", detail: `the liquidation preview failed right before the broadcast (${describeError(e)})`, next: "call plan_order again shortly" }];
+        }
+      }
+      found ??= evaluate(now, { market: raw.symbol, notionalUsd: exposure, liquidationDistancePct: dist, ordersToday: ordersToday(deps) + s.opens - 1 });
       if (found.length) throw Object.assign(new Error(found[0].detail), { pilotRefusals: found });
     };
     return await sendIoc(deps, { action: "open", raw: { ...raw, price }, plan_id, check, extra: price === raw.price ? {} : { planLimitPrice: u.px(raw.price) } });

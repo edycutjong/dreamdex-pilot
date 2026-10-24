@@ -463,6 +463,18 @@ describe("journal failure after a send (round 3)", () => {
     expect(r).toMatchObject({ ok: false, sent: true, txsSeen: ["0x" + "a".repeat(64)] });
     expect(r.journalError).toMatch(/disk full/);
   });
+  it("a bracket that landed but could not be journaled is still found by cancel_all before the indexer lists it", async () => {
+    const { deps, state } = longSol();
+    state.stops = []; // the indexer has not caught up with the new bracket yet
+    const real = deps.journal.append;
+    deps.journal.append = (e) => { if (e.kind === "bracket") throw new Error("disk full"); return real(e); };
+    const r = await bracket(deps, { market: "SOL", take_profit_pct: 3, stop_loss_pct: 2 });
+    expect(r).toMatchObject({ ok: true, takeProfitStopId: "11", stopLossStopId: "12" });
+    expect(r.journalError).toMatch(/disk full/);
+    deps.journal.append = real;
+    const c = await cancelAll(deps, { market: "SOL" });
+    expect(c.cancelledStops.map((x) => x.id).sort()).toEqual(["11", "12"]);
+  });
   it("cancel_all keeps the txs it already sent when a later journal write throws", async () => {
     const { deps, state } = longSol();
     state.stops = [{ orderIdRaw: "11", registry: SOL.stopRegistry }];

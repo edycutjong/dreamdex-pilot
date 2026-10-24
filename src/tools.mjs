@@ -23,7 +23,7 @@ const liveStops = async (deps, mk, indexed, rows = deps.journal.read()) => {
   const reg = mk.stopRegistry.toLowerCase();
   const ids = new Set(indexed.filter((s) => String(s.registry).toLowerCase() === reg).map((s) => String(s.orderIdRaw)));
   const cancelled = new Set(rows.filter((e) => e.kind === "cancel").flatMap((e) => (e.cancelledStops ?? []).map((c) => String(c.id))));
-  for (const e of rows) {
+  for (const e of [...rows, ...(inflight(deps).unjournaledStops ?? [])]) {
     if (e.kind !== "bracket" || e.market !== mk.baseSymbol) continue;
     for (const id of [e.takeProfitStopId, e.stopLossStopId]) if (id && !cancelled.has(String(id))) ids.add(String(id));
   }
@@ -240,6 +240,7 @@ const bracketLocked = async (deps, { mk, u, base, take_profit_pct, stop_loss_pct
     deps.journal.append({ kind: "bracket", sent: true, ...out });
   } catch (e) {
     out.journalError = `the bracket landed but the journal write failed: ${describeError(e)}`;
+    inflight(deps).unjournaledStops.push({ kind: "bracket", market: out.market, takeProfitStopId: out.takeProfitStopId, stopLossStopId: out.stopLossStopId });
   }
   return out;
 };
