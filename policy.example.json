@@ -1,0 +1,8 @@
+{
+  "maxNotionalUsd": 25,
+  "minLiquidationDistancePct": 15,
+  "allowedMarkets": ["BTC", "ETH", "SOL"],
+  "dailyOrderCap": 20,
+  "maxSlippagePct": 1,
+  "planTtlSec": 60
+}
