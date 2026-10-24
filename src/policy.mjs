@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { z } from "zod";
 
 export const DEFAULT_POLICY = Object.freeze({
-  maxNotionalUsd: 25,
+  maxNotionalUsd: 25, // per market, on the position an order leaves (orders cannot stack past it)
   minLiquidationDistancePct: 15,
   allowedMarkets: ["BTC", "ETH", "SOL"],
   dailyOrderCap: 20,
@@ -44,7 +44,7 @@ export const evaluate = (policy, facts) => {
   if (!policy.allowedMarkets.includes(facts.market))
     v.push({ rule: "allowedMarkets", detail: `${facts.market} is not on the allowed list (${policy.allowedMarkets.join(", ")})`, next: `pick one of ${policy.allowedMarkets.join(", ")}` });
   if (facts.notionalUsd > policy.maxNotionalUsd)
-    v.push({ rule: "maxNotionalUsd", detail: `notional $${facts.notionalUsd.toFixed(2)} is above the $${policy.maxNotionalUsd} cap`, next: `reduce size to at most ${facts.maxSizeUnderCap ?? "the cap"}` });
+    v.push({ rule: "maxNotionalUsd", detail: `the position this order leaves would be $${facts.notionalUsd.toFixed(2)} notional, above the $${policy.maxNotionalUsd} cap per market`, next: `reduce size to at most ${facts.maxSizeUnderCap ?? "the cap"}` });
   if (facts.liquidationDistancePct != null && facts.liquidationDistancePct < policy.minLiquidationDistancePct)
     v.push({ rule: "minLiquidationDistancePct", detail: `liquidation would sit ${facts.liquidationDistancePct.toFixed(2)}% from mark, closer than the ${policy.minLiquidationDistancePct}% minimum`, next: "use a smaller size (less leverage)" });
   if (facts.ordersToday >= policy.dailyOrderCap)

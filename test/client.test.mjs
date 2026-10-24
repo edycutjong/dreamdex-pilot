@@ -41,4 +41,21 @@ describe("createSender", () => {
     const e = await send({}).catch((x) => x);
     expect(e.pilotNotSent).toBe(true);
   });
+  it("runs sends one at a time so each error keeps its own hash", async () => {
+    let n = 0;
+    const send = createSender(({ debug }) => ({
+      trader: {
+        placePerpOrder: async () => {
+          const me = ++n;
+          debug({ kind: "span", phase: "annotate", id: me, name: "trade.execute", data: { hash: `0x${me}` } });
+          await new Promise((r) => setTimeout(r, me === 1 ? 20 : 0)); // first send is slower
+          if (me === 1) throw new ContractRevertError({ errorName: "ImmediateOrCancelNoFill" });
+          return { hash: `0x${me}`, fills: [] };
+        },
+      },
+    }));
+    const [a, b] = await Promise.allSettled([send({}), send({})]);
+    expect(a.reason.txHash).toBe("0x1");
+    expect(b.value.hash).toBe("0x2");
+  });
 });

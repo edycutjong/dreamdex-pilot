@@ -46,7 +46,7 @@ export const createServer = (deps) => {
     {
       title: "Plan a perp order (no transaction)",
       description:
-        "Plan a market-taking (IOC) perp order WITHOUT sending it: reads the exchange's max order size, margin preview and projected liquidation price, checks them against the user's policy (allowed markets, max notional, min liquidation distance, daily cap), and returns the numbers plus a verdict. An ok plan gets a short-lived one-shot plan_id for place_order. Give exactly one of size (base units, e.g. \"0.1\" SOL) or notional_usd. Show the user the liquidation price before placing.",
+        "Plan a market-taking (IOC) perp order WITHOUT sending it: reads the exchange's max order size, margin preview and projected liquidation price, checks them against the user's policy (allowed markets, max notional of the position the order leaves in that market, min liquidation distance, daily cap), and returns the numbers plus a verdict. An ok plan gets a short-lived one-shot plan_id for place_order. Give exactly one of size (base units, e.g. \"0.1\" SOL) or notional_usd. Show the user the liquidation price before placing.",
       inputSchema: {
         market: z.string().min(1).max(16).describe("Base symbol, e.g. BTC, ETH, SOL"),
         side: z.enum(["long", "short"]),
@@ -102,7 +102,7 @@ export const createServer = (deps) => {
     {
       title: "Show the trading policy",
       description:
-        "Show the user's trading limits (max notional, min liquidation distance, allowed markets, daily order cap, slippage, plan lifetime), where they come from, and how many orders were sent today. Read-only: only the user changes the policy file, never the agent.",
+        "Show the user's trading limits (max position notional per market, min liquidation distance, allowed markets, daily order cap, slippage, plan lifetime), where they come from, and how many orders were sent today. Read-only: only the user changes the policy file, never the agent.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

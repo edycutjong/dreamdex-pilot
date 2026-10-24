@@ -16,6 +16,7 @@ const market = (sym, pool) => ({
   tickSize: (10n ** 16n).toString(), fundingRate: "0", fundingWindowSec: 28800, openInterest: "0",
 });
 export const SOL = market("SOL", "0xb483ec1fb34996638677c20ab087b16f1896fa53");
+export const ETH = market("ETH", "0x00000000000000000000000000000000000000e0"); // SOL's numbers, own pool
 // DOGE as on chain 2026-10-24: 8 decimals, minimum 120, lot 10, ~$0.0788.
 export const DOGE = { ...market("DOGE", "0x00000000000000000000000000000000000000d0"), baseDecimals: 8, minQuantity: "12000000000", lotSize: "1000000000", markPrice: "78757972421000000" };
 
@@ -29,7 +30,7 @@ export const makeDeps = (over = {}) => {
   };
   const previews = [];
   const client = {
-    listPerpMarkets: async () => [SOL, DOGE],
+    listPerpMarkets: async () => [SOL, ETH, DOGE],
     getBookTopsOnchain: async ([{ poolAddress }]) => ({ tops: { [poolAddress]: { bestBid: state.bid, bestAsk: state.ask } } }),
     // The real SDK throws on quantity 0 ("quantity must be > 0"); so does the stub.
     getMaxPerpOrderSize: async () => state.max,

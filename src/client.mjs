@@ -35,7 +35,9 @@ export const createSender = (make = writeMarkets) => {
   const debug = (e) => {
     if (e.kind === "span" && e.phase === "annotate" && e.name === "trade.execute" && e.data?.hash) lastHash = e.data.hash;
   };
-  return async (order) => {
+  // One send at a time: `lastHash` is shared, so overlapping sends could swap hashes.
+  let queue = Promise.resolve();
+  const sendOne = async (order) => {
     try {
       writer ??= make({ debug });
     } catch (e) {
@@ -49,5 +51,10 @@ export const createSender = (make = writeMarkets) => {
       e.txHash = lastHash;
       throw e;
     }
+  };
+  return (order) => {
+    const run = queue.then(() => sendOne(order));
+    queue = run.catch(() => {});
+    return run;
   };
 };
