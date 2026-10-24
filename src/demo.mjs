@@ -1,6 +1,12 @@
 // `pilot journal --md`: render journal entries (one or more JSONL files) into DEMO.md. Every
 // figure comes from the journal rows; receipts (status/block/gas) come from a refetch file made
 // by scripts/refetch.mjs, which re-reads each tx from the RPC. Nothing is typed in by hand.
+import { LIMIT_RULES } from "./policy.mjs";
+
+// A refusal row is "by my limits" when one of its rules is a policy limit (LIMIT_RULES); the rest are
+// pilot's own checks (a size under the market minimum, an unknown, used or expired plan, ...).
+const isLimit = (e) => (e.rules ?? []).some((r) => LIMIT_RULES.includes(r));
+
 const short = (h) => (h ? `${h.slice(0, 10)}…${h.slice(-6)}` : "-");
 const cell = (v) => String(v ?? "-").replace(/\|/g, "\\|").replace(/\n/g, " ");
 // dreamDEX's markets explorer for the Hideki testnet (listed on its perps testnet docs page). /tx/<hash> shows the market events of a
@@ -54,7 +60,10 @@ export const renderDemo = (entries, { receipts = new Map(), title = "pilot — D
   out.push(`- Cancels that sent a transaction: **${cancels.length}**`);
   const injected = byExchange.filter((e) => e.injected);
   const distinct = new Set(byPilot.flatMap((e) => e.rules ?? [])).size;
-  out.push(`- Refusals by pilot's policy: **${byPilot.length}** rows (**${distinct}** distinct rules); refusals by the exchange: **${byExchange.length}**${injected.length ? ` (${injected.length} of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)` : ""}`, "");
+  const limited = byPilot.filter(isLimit);
+  const named = (rows, keep) => [...new Set(rows.flatMap((e) => e.rules ?? []).filter(keep))].join(", ");
+  const split = byPilot.length ? `: **${limited.length}** by the policy limits (${named(limited, (r) => LIMIT_RULES.includes(r)) || "none"}), **${byPilot.length - limited.length}** by pilot's own checks (${named(byPilot.filter((e) => !isLimit(e)), () => true) || "none"})` : "";
+  out.push(`- Refusals by pilot's policy: **${byPilot.length}** rows (**${distinct}** distinct rules)${split}; refusals by the exchange: **${byExchange.length}**${injected.length ? ` (${injected.length} of them with the race injected: the limit price was lowered in the sender so the order was unfillable by construction, no natural race; see Notes)` : ""}`, "");
   // The refusal a judge should see first, before the tables: the newest one by the position cap.
   const cap = byPilot.filter((e) => e.rules?.includes("maxNotionalUsd") && e.positionNow != null && e.positionNow !== "0").at(-1);
   if (cap) {
@@ -110,12 +119,11 @@ export const REPO = "https://github.com/edycutjong/dreamdex-pilot";
 export const renderCard = (entries, { explorer = EXPLORER, repo = REPO } = {}) => {
   const by = (k) => entries.filter((e) => e.kind === k);
   const refusals = by("refusal").filter((e) => e.refused_by === "pilot-policy");
-  const rules = new Set(refusals.flatMap((e) => e.rules ?? []));
   const fills = [...by("order"), ...by("close")].filter((e) => /^0x[0-9a-f]{64}$/i.test(e.tx ?? ""));
   const last = fills.sort((a, b) => String(a.at).localeCompare(String(b.at))).at(-1);
   return [
-    "My AI agent's dreamDEX perps receipts (Somnia testnet, via pilot):",
-    `${by("order").length} orders opened, ${by("close").length} closed, ${by("bracket").length} brackets, ${refusals.length} refused by my limits (${rules.size} rules).`,
+    "My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:",
+    `${by("order").length} orders opened, ${by("close").length} closed, ${by("bracket").length} brackets, ${refusals.length} refused with nothing sent (${refusals.filter(isLimit).length} by my limits).`,
     ...(last ? [`Latest fill: ${explorer}/tx/${last.tx}`] : []),
     repo,
   ].join("\n") + "\n";

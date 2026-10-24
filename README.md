@@ -109,12 +109,12 @@ PILOT_JOURNAL=/tmp/pilot-check.jsonl node scripts/roundtrip-via-mcp.mjs SOL 0.1 
 
 `node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
 
-`node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share: counts, your latest fill on the explorer, and a link back here.
+`node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share, tagging @DreamDEXSomnia: counts (refusals split into your policy limits and pilot's own checks, such as a size under the market minimum or an expired plan), your latest fill on the explorer, and a link back here.
 For the journals behind `DEMO.md` it prints:
 
 ```text
-My AI agent's dreamDEX perps receipts (Somnia testnet, via pilot):
-9 orders opened, 9 closed, 2 brackets, 15 refused by my limits (7 rules).
+My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:
+9 orders opened, 9 closed, 2 brackets, 15 refused with nothing sent (11 by my limits).
 Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5
 https://github.com/edycutjong/dreamdex-pilot
 ```

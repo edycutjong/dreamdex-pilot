@@ -45,6 +45,10 @@ export const loadPolicy = (path = policyPath()) => {
   return { ...p, allowedMarkets: p.allowedMarkets.map((s) => s.toUpperCase()), source: path };
 };
 
+// The rules evaluate() can emit: the user's own limits. pilot's other refusals (minQuantity,
+// unknownPlan, planExpired, stalePlan, ...) are its own checks, and the receipts keep them apart.
+export const LIMIT_RULES = Object.freeze(["allowedMarkets", "maxNotionalUsd", "minLiquidationDistancePct", "dailyOrderCap"]);
+
 // Pure: facts in, violations out. Each violation names the rule and the next safe action.
 // `facts.liquidationDistancePct` null = no reachable liquidation price (a tiny long on cross margin).
 export const evaluate = (policy, facts) => {

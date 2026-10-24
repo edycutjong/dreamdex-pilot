@@ -288,7 +288,7 @@ describe("DEMO.md", () => {
   it("counts only what the journal holds and shows the receipts", () => {
     const md = renderDemo(rows, { receipts, sources: ["j.jsonl"] });
     expect(md).toMatch(/Real orders opened through the MCP tools: \*\*1\*\*/);
-    expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\* rows \(\*\*1\*\* distinct rules\); refusals by the exchange: \*\*1\*\*/i);
+    expect(md).toMatch(/refusals by pilot's policy: \*\*1\*\* rows \(\*\*1\*\* distinct rules\): \*\*1\*\* by the policy limits \([a-zA-Z]+\), \*\*0\*\* by pilot's own checks \(none\); refusals by the exchange: \*\*1\*\*/i);
     expect(md).toContain(`[\`0x${"1".repeat(64)}\`](${EXPLORER}/tx/0x${"1".repeat(64)}) | success @ block 100, 1500000 gas`);
     expect(md).toContain("ImmediateOrCancelNoFill");
     expect(md).toContain("reverted @ block 102");
@@ -327,7 +327,12 @@ describe("DEMO.md", () => {
 
   it("journal --card: counts from the journal, the latest fill on the explorer, a link back, fits a post", () => {
     const card = renderCard(rows);
-    expect(card).toContain("1 orders opened, 1 closed, 0 brackets, 1 refused by my limits (1 rules).");
+    expect(card.split("\n")[0]).toBe("My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:");
+    expect(card).toContain("1 orders opened, 1 closed, 0 brackets, 1 refused with nothing sent (1 by my limits).");
+    // pilot's own checks are refusals with nothing sent, but not "my limits"
+    const own = { at: "2026-10-24T06:00:00.000Z", kind: "refusal", refused_by: "pilot-policy", stage: "place", rules: ["planExpired"] };
+    expect(renderCard([...rows, own])).toContain("2 refused with nothing sent (1 by my limits).");
+    expect(renderDemo([...rows, own])).toMatch(/\*\*2\*\* rows \(\*\*2\*\* distinct rules\): \*\*1\*\* by the policy limits \([a-zA-Z]+\), \*\*1\*\* by pilot's own checks \(planExpired\)/);
     expect(card).toContain(`Latest fill: ${EXPLORER}/tx/0x${"2".repeat(64)}`); // the close, after the order
     expect(card.trim().endsWith(REPO)).toBe(true);
     expect(card.replace(/https:\/\/\S+/g, "x".repeat(23)).trim().length).toBeLessThanOrEqual(280);
