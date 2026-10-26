@@ -1,18 +1,30 @@
-<p align="center">
+<div align="center">
+  <img src="docs/assets/icon.svg" alt="Pilot icon" width="144">
+  <h1>Pilot 🛩️</h1>
+  <p><em>Limits you set between your AI agent and dreamDEX perps: a next step on every refusal, a receipt for every order.</em></p>
   <img src="docs/assets/readme-hero-animated.svg" alt="Pilot — an MCP server between AI agents and dreamDEX perps. Pilot refuses the agent's 0.0005 BTC short in red at the $25 cap; the 0.00031 re-issue clears green." width="100%">
-</p>
 
-# Pilot
+  <p><b>9 real orders opened and 9 closed on the dreamDEX testnet through the MCP tools, 15 refused with nothing sent.</b> Every transaction was re-read from the RPC and is listed in <a href="DEMO.md"><code>DEMO.md</code></a>.</p>
 
-Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that puts limits you set between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on the Somnia Tokyo testnet: it checks every opening order against your position cap, liquidation distance and allowed markets, checks again on live state when it sends, names a next step the agent can take when it refuses, and writes a receipt for each transaction.
+  <br/>
 
-```
-agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
-```
+  [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://github.com/edycutjong/dreamdex-pilot/blob/main/docs/pitch/pilot-pitch-deck.pdf)
+  [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
+  [![Built for dreamDEX Perps Bounty](https://img.shields.io/badge/DoraHacks-dreamDEX_Perps_Bounty-8b5cf6?style=for-the-badge)](https://dorahacks.io/hackathon/dreamdex-perps-bounty/detail)
 
-Built for the dreamDEX Perps Bounty, MVP track, category bots and agents.
+  <br/>
 
-## Demo excerpt
+  ![Node.js](https://img.shields.io/badge/Node.js_22-339933?style=flat&logo=nodedotjs&logoColor=white)
+  ![MCP](https://img.shields.io/badge/MCP_server-000000?style=flat)
+  ![viem](https://img.shields.io/badge/viem-1E1E1E?style=flat)
+  ![Somnia](https://img.shields.io/badge/Somnia_testnet-6D28D9?style=flat)
+  [![License](https://img.shields.io/badge/License-MIT-yellow)](https://opensource.org/licenses/MIT)
+
+</div>
+
+---
+
+## 📸 See it in Action
 
 Every transaction below was re-read from the RPC; each order hash opens its fill on dreamDEX's Hideki markets explorer.
 
@@ -41,15 +53,17 @@ The agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c
 
 Brackets and cancels are on chain too, e.g. bracket `0x0a95c4234df79a4f294b44eb8ed77474180a850c2ce3f48e06296ad7ed72397f` (take-profit 105.55, stop-loss 100.43, success @ block 31581911) and its cancel `0x60b69767239c2d5647d7810535d556ebaddfb69c7423384a761658f98579cf31` (success @ block 31581985); see the Brackets and Cancels sections of `DEMO.md` (the explorer shows fills only, so bracket and cancel hashes are not linked; `DEMO.md` re-reads them from the RPC).
 
-## Who it is for
+## 💡 The Problem & Solution
 
-Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`node bin/pilot.mjs journal --card`).
+### The Problem
 
-Testnet only: the Somnia Tokyo testnet, as the bounty listing names it; dreamDEX's docs call that chain Hideki (chain id 50383). Use a burner key, never a wallet that holds anything real.
+Handing an AI agent a trading key is all or nothing. Give an agent the SDK and a key and it can send any order the exchange accepts.
 
-## What pilot adds over handing the agent the SDK
+### The Solution
 
-Give an agent the SDK and a key and it can send any order the exchange accepts. A trading form shows a person the numbers; pilot puts your limits between the agent and the exchange:
+Pilot is an MCP server that puts limits you set between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on the Somnia Tokyo testnet: it checks every opening order against your position cap, liquidation distance and allowed markets, checks again on live state when it sends, names a next step the agent can take when it refuses, and writes a receipt for each transaction.
+
+A trading form shows a person the numbers; pilot puts your limits between the agent and the exchange:
 
 - **Limits no pilot tool can edit.** They live in a file that no pilot tool writes (`policy` is read-only).
 - **The cap is on the position, not the order**, so small orders cannot stack past it (see the 0.1 SOL refusal above).
@@ -57,7 +71,28 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 - **A next step, not just a no.** A refusal names the rule and a next safe action the agent can act on ("plan at least 0.1 SOL", "pick one of BTC, ETH, SOL"), and says so when no order fits.
 - **It carries over between sessions.** Limits and the journal live in `~/.pilot`, so every new agent session starts from the same limits, the daily order cap counts across sessions and restarts, and the journal grows into one record of everything your agents did there.
 
-## Tools
+### Who it is for
+
+Anyone who wants an AI agent (tested with Claude Code and Codex CLI; other MCP clients should work) to place dreamDEX perps orders without handing it an unguarded key: bot and agent builders, and traders who want to try agent-driven trading on testnet with hard limits they set and a receipt for every order. The agent can plan, place, bracket, close and cancel; no pilot tool can change your limits. The loop: set your limits once, let your agents trade inside them session after session, and share the receipt (`node bin/pilot.mjs journal --card`).
+
+Testnet only: the Somnia Tokyo testnet, as the bounty listing names it; dreamDEX's docs call that chain Hideki (chain id 50383). Use a burner key, never a wallet that holds anything real.
+
+## 🏗️ Architecture & Tech Stack
+
+```
+agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
+```
+
+| Layer | Choice |
+|---|---|
+| Runtime | Node 22, ESM, no build step |
+| Protocol | MCP over stdio (`@modelcontextprotocol/sdk` 1.32.2) |
+| Exchange | `@somnia-chain/markets-sdk` 0.32.1 on the Somnia Tokyo testnet (Hideki, chain id 50383) |
+| Chain client | `viem` 2.57.7 |
+| Validation | `zod` 4.6.7 (the policy file) |
+| Tests | `vitest` 5.0.5 |
+
+### Tools
 
 | Tool | What it does |
 |---|---|
@@ -73,9 +108,69 @@ Give an agent the SDK and a key and it can send any order the exchange accepts. 
 
 Your limits live in `~/.pilot/policy.json` (or `$PILOT_POLICY`); see `policy.example.json`. Without a file the defaults apply: $25 maximum position notional per market, liquidation at least 15% from mark, BTC/ETH/SOL only, 20 opening orders a day, 1% slippage, plans valid 60 seconds. Keys you leave out of the file keep their default; an unknown key or a bad value makes the file invalid. An invalid file stops `plan_order`, `place_order` and `policy` until you fix the file, with an error that names the file and what is wrong; it never silently falls back. `account` still lists positions and brackets and puts that error under `policy.unreadable`, and `close_position` still closes, at the default 1% slippage bound, saying so in `policyUnreadable` (`cancel_all`, `bracket`, `markets` and `journal` do not read the policy).
 
-## Run it
+## 🏆 dreamDEX Integration
 
-Needs Node 22 or newer.
+Built for the dreamDEX Perps Bounty, MVP track, category bots and agents.
+
+Pilot reads and writes through the markets SDK only (`src/`). Among the calls it makes: `listPerpMarkets`, `getMarginAccount`, `getPerpPosition`, `getPerpPositionAnalytics`, `getMaxPerpOrderSize`, `getBookTopsOnchain`, `previewPerpOrderMargin`, `previewPerpLiquidationPrice`, `listPerpStopOrders`, `getPerpStopOrder` and `getPerpStopOrderSomiPayment`, plus its order, bracket and cancel writes.
+
+## ⛓️ Live Deployment
+
+### Receipts
+
+`node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
+
+`node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share, tagging @DreamDEXSomnia: counts (refusals split into your policy limits and pilot's own checks, such as a size under the market minimum or an expired plan), your latest fill on the explorer, and a link back here.
+For the journals behind `DEMO.md` it prints:
+
+```text
+My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:
+9 orders opened, 9 closed, 2 brackets, 15 refused with nothing sent (11 by my limits).
+Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5
+https://github.com/edycutjong/dreamdex-pilot
+```
+
+X post 3 (planned, see Demo Materials) shares this card.
+
+A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL ([`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c)), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
+
+## 📊 Engineering Rigor
+
+| Check | Result |
+|---|---|
+| Unit and MCP-client tests | 214 passing + 1 live check, off unless `PILOT_INTEGRATION=1` (`npm test`) |
+| Real orders through the MCP tools | 9 opened, 9 closed, 2 brackets, 2 cancels, every transaction re-read from the RPC (`DEMO.md`) |
+| Refusals with nothing sent | 15 rows, 7 distinct rules (`DEMO.md`) |
+
+### Safety
+
+- Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
+- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends. If another transaction holds the writer first, the plan's expiry and your policy are checked again right before the broadcast.
+- The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it. It is measured at the highest price the order can fill at: a buy's limit, a sell's top bid.
+- One signing server per key: every MCP client session starts its own pilot server, and the first one to write holds a lock (`~/.pilot/locks`) until it exits. Another server for the same key keeps its read tools and plans, but its writes (orders, closes, brackets, cancels) are refused with nothing sent, so close from the session that holds it (`evidence/p8-r05-signer-lock.txt`: two servers on one key from a scripted MCP client; the second one's `place_order` came back `sent: false` while the first opened and closed).
+- Closing and cancelling reduce risk, so your policy limits never block them, and neither does an invalid policy file (see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, another pilot server holding the signer lock (below), a failed chain read, or the exchange refusing the IOC (with its decoded reason).
+
+### Honest limits (11)
+
+1. Testnet only. Nothing here has run on mainnet. Moving there means changing the chain, contract addresses and indexer in `src/client.mjs`, the network name in `src/server.mjs` and the explorer in `src/demo.mjs`, and re-checking that every market shares one margin bank, which `account` assumes (true for all 21 Hideki markets on 2026-10-24, `evidence/p8-r05-markets-check.txt`, from `scripts/markets-check.mjs`; the assumption is in `src/tools.mjs`).
+2. One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because no natural one could be recorded through pilot's freshness check (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
+3. A close is a plain IOC order: the SDK's reduce-only intent exists for stop orders (`bracket`) only. If something else shrinks the position while a close is in flight (a bracket firing, another client), the close can open the other side; `close_position` reads the position back and says so (`flipped`).
+4. No Somnia Reactivity or Somnia Agents yet: pilot reads and writes through the markets SDK only.
+5. If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
+6. A crash between a landed send and its journal row is not counted toward the daily cap.
+7. Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, turn those tools off or fence them in (Getting Started: Claude Code with no built-in tools; Codex with a read-only sandbox and `PILOT_*` kept out of its shell, which still leaves it a shell; each checked with a throwaway key) and keep the burner small.
+8. Plans live in the server's memory only, so restarting the server drops them.
+9. At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49.50, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
+10. MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
+11. `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Node 22 or newer.
+
+### Installation
 
 ```bash
 git clone https://github.com/edycutjong/dreamdex-pilot && cd dreamdex-pilot
@@ -141,49 +236,34 @@ npx @modelcontextprotocol/inspector node "$PWD/bin/pilot.mjs"
 npx @modelcontextprotocol/inspector --cli node "$PWD/bin/pilot.mjs" --method tools/list
 ```
 
+## 🧪 Testing & CI
 
-## Receipts
-
-`node bin/pilot.mjs journal --md` renders the journal as a document. [`DEMO.md`](DEMO.md) is that output for the recorded runs: real orders, closes, a bracket, cancels, and refusals, each transaction re-read from the RPC (`scripts/build-demo.sh`). The raw runs and journals are in [`evidence/`](evidence/).
-
-`node bin/pilot.mjs journal --card` prints a short receipt of your own journal to share, tagging @DreamDEXSomnia: counts (refusals split into your policy limits and pilot's own checks, such as a size under the market minimum or an expired plan), your latest fill on the explorer, and a link back here.
-For the journals behind `DEMO.md` it prints:
-
-```text
-My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:
-9 orders opened, 9 closed, 2 brackets, 15 refused with nothing sent (11 by my limits).
-Latest fill: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x664861a4af6429d74637f5f5be853dee21a6a935eae9e01913a485f0044c85a5
-https://github.com/edycutjong/dreamdex-pilot
+```bash
+npm test                                # unit + MCP-client tests, no key, nothing sent
+npm audit --omit=dev --audit-level=high # dependency audit
+PILOT_INTEGRATION=1 npx vitest run test/integration.test.mjs   # live testnet reads, no key
 ```
 
-X post 3 (planned, below) shares this card.
+GitHub Actions: `ci.yml` (tests, audit, syntax check), `codeql.yml`, `gitleaks.yml` (full history), `release.yml` (tags `vX.Y.Z` from Angular-style commit prefixes), and Dependabot (monthly, grouped, no major bumps).
 
-A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.md` counts): `scripts/bracket-fire-via-mcp.mjs` opened 0.1 SOL ([`0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x41ed25b10f7f032cd287ac96f6e6d4648a05f7926dcceaaa168304d03293fd8c)), armed a bracket 0.1% either side of mark (`0x2abd71d7ff60eb707898f3c0966da34bd99774e0256cc29419cb14ab850760d4`), and about 10 minutes later the position was flat with no close sent, both legs no longer live on the stop registry, and `cancel_all` had nothing left to cancel (`evidence/p8-r05-bracket-fire.txt`, `evidence/p8-r05-bracket-fire-chain.txt`).
+## 📁 Project Structure
 
+```
+bin/pilot.mjs      MCP server entry (stdio)
+src/               server, tools, trader (plan/place/close), policy, journal, SDK client
+test/              vitest suites and fixtures
+scripts/           real-run drivers (MCP client round trips) and the DEMO.md builder
+evidence/          raw captures behind every claim in this README and DEMO.md
+docs/              landing page, pitch deck, README assets
+policy.example.json  the default limits, as a file you can edit
+```
 
-## Safety
+## 📽️ Demo Materials
 
-- Testnet only; the key comes from `PILOT_PRIVATE_KEY` and is never written to disk by pilot.
-- `place_order` only sends a plan that `plan_order` approved, once, within its lifetime, and re-checks the policy, the live position and a fresh liquidation and margin preview when it sends. If another transaction holds the writer first, the plan's expiry and your policy are checked again right before the broadcast.
-- The notional cap applies to the position an order leaves in that market, so small orders cannot stack past it. It is measured at the highest price the order can fill at: a buy's limit, a sell's top bid.
-- One signing server per key: every MCP client session starts its own pilot server, and the first one to write holds a lock (`~/.pilot/locks`) until it exits. Another server for the same key keeps its read tools and plans, but its writes (orders, closes, brackets, cancels) are refused with nothing sent, so close from the session that holds it (`evidence/p8-r05-signer-lock.txt`: two servers on one key from a scripted MCP client; the second one's `place_order` came back `sent: false` while the first opened and closed).
-- Closing and cancelling reduce risk, so your policy limits never block them, and neither does an invalid policy file (see above). A close can still stop, and says why: an empty book on that side, another order on that market already in flight, another pilot server holding the signer lock (below), a failed chain read, or the exchange refusing the IOC (with its decoded reason).
+- [`DEMO.md`](DEMO.md): the journal of the real runs, rendered
+- [Landing page](docs/index.html) and [pitch deck](docs/pitch/index.html) ([PDF](docs/pitch/pilot-pitch-deck.pdf)), in this repo
 
-## Honest limits
-
-- Testnet only. Nothing here has run on mainnet. Moving there means changing the chain, contract addresses and indexer in `src/client.mjs`, the network name in `src/server.mjs` and the explorer in `src/demo.mjs`, and re-checking that every market shares one margin bank, which `account` assumes (true for all 21 Hideki markets on 2026-10-24, `evidence/p8-r05-markets-check.txt`, from `scripts/markets-check.mjs`; the assumption is in `src/tools.mjs`).
-- One exchange refusal in `DEMO.md` is marked **race injected**: the limit price was lowered in the sender to make the order unfillable, because no natural one could be recorded through pilot's freshness check (12 attempts at a 0.01% slippage bound all filled). The revert and the decoded reason are real; the book did not move.
-- A close is a plain IOC order: the SDK's reduce-only intent exists for stop orders (`bracket`) only. If something else shrinks the position while a close is in flight (a bracket firing, another client), the close can open the other side; `close_position` reads the position back and says so (`flipped`).
-- No Somnia Reactivity or Somnia Agents yet: pilot reads and writes through the markets SDK only.
-- If the SDK fails its own replay of a reverted transaction, pilot returns code `unknown` and says the reason could not be read, rather than guessing one.
-- A crash between a landed send and its journal row is not counted toward the daily cap.
-- Pilot guards its own tools, not the rest of the agent. An agent that also has shell or file tools (Claude Code and Codex CLI do) could edit the policy file or read the key from the environment it inherits. For a trading session, turn those tools off or fence them in (Run it: Claude Code with no built-in tools; Codex with a read-only sandbox and `PILOT_*` kept out of its shell, which still leaves it a shell; each checked with a throwaway key) and keep the burner small.
-- Plans live in the server's memory only, so restarting the server drops them.
-- At the default $25 cap, an account holding more than $25 of USDso stays under 1x leverage (the test burner held about $49.50, `evidence/p8-r05-bracket-fire.txt`), where a long has no reachable liquidation price, so the 15% liquidation rule did not bind in the agent runs. `DEMO.md` shows it refusing a 6.7x plan (liquidation 12.8% from mark) under a test policy that lifts the cap, plans only.
-- MCP Inspector's CLI mode starts a new server for every call, so a `plan_id` from `plan_order` is gone by the next call (`evidence/p3-mcp-cli-client.txt`); its UI mode is meant to keep one server process while connected (not exercised here).
-- `markets` and `account` do not flag markets closed to paper USDso; `plan_order` refuses them (`voucherBlocked`) from the exchange's own preview.
-
-## X posts
+### X posts
 
 Posts about pilot that tag @DreamDEXSomnia:
 
@@ -191,6 +271,6 @@ Posts about pilot that tag @DreamDEXSomnia:
 2. _link to post 2 goes here_
 3. _link to post 3 goes here_
 
-## License
+## 📄 License
 
 MIT
