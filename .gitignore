@@ -10,3 +10,4 @@ coverage/
 *.pem
 *.key
 probe.env
+!.env.example
