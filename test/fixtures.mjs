@@ -22,7 +22,7 @@ export const DOGE = { ...market("DOGE", "0x0000000000000000000000000000000000000
 
 export const makeDeps = (over = {}) => {
   const state = {
-    bid: px(102.5), ask: px(102.52), pos: 0n, sends: [], clock: Date.parse("2026-10-24T03:00:00Z"),
+    bid: px(102.5), ask: px(102.52), pos: 0n, sends: [], clock: Date.parse(`${new Date().toISOString().slice(0, 10)}T03:00:00Z`), // today (UTC): journal rows are stamped with the real clock, so a fixed date made the daily-cap tests pass on one day only
     max: { priceable: true, placeable: true, maxQuantity: sol(7.8), limitedBy: "margin" },
     margin: { priceable: true, lockAmount: E18, meetsInitialMargin: true, hasCollateralForLock: true, voucherBlocked: false, markPrice: px(102.51) },
     liq: { priceable: true, projectedLiquidationPrice: 0n, markPrice: px(102.51), projectedPositionLeverageBps: 2000n },
