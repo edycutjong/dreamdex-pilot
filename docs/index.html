@@ -71,13 +71,9 @@ code,.mono{font-family:var(--font-data)}
 .hero::after{content:"";position:absolute;top:0;bottom:0;right:0;width:54%;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='76' preserveAspectRatio='none'%3E%3Crect y='11' width='640' height='54' fill='%23E9DDBF' fill-opacity='.04'/%3E%3Crect y='11' width='7' height='54' fill='%238E8B78' fill-opacity='.4'/%3E%3Cpath d='M190 19v38M300 19v38M430 19v38' stroke='%23E9DDBF' stroke-opacity='.07'/%3E%3C/svg%3E");background-size:100% 76px;background-repeat:repeat-y;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 92%,transparent)}
-.hold-unused{display:none;
-  background:linear-gradient(90deg,var(--before) 0 4px,transparent 4px 9px,var(--before) 9px 13px,transparent 13px 21px,
-  transparent 21px),repeating-linear-gradient(180deg,var(--before) 0 22px,transparent 22px 40px);
-  background-size:13px 100%,13px 100%;background-position:0 0,21px 0;background-repeat:no-repeat}
 .hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);gap:clamp(32px,5vw,76px);padding-top:clamp(48px,7vh,88px);padding-bottom:clamp(48px,7vh,80px);align-items:center}
 .eyebrow{display:inline-flex;gap:10px;align-items:center;border:1px solid var(--rule);padding:7px 12px;font-family:var(--font-data);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.eyebrow i{width:7px;height:7px;background:var(--after);display:inline-block}
+.eyebrow i{width:7px;height:7px;background:var(--strip);display:inline-block}
 h1{font-family:var(--font-display);font-weight:900;text-transform:uppercase;font-size:clamp(52px,6.6vw,104px);line-height:.88;letter-spacing:-.004em;margin:24px 0 26px;text-wrap:balance}
 h1 .hl{color:var(--before);position:relative;white-space:nowrap;text-shadow:0 0 42px color-mix(in srgb,var(--before) 30%,transparent)}
 h1 .hl::after{content:"";position:absolute;left:-1.5%;right:-1.5%;bottom:.05em;height:.085em;background:var(--before);border-radius:4px;transform:rotate(-1.3deg);transform-origin:left}
@@ -170,7 +166,7 @@ h1 .hl::after{content:"";position:absolute;left:-1.5%;right:-1.5%;bottom:.05em;h
 section.s{padding:clamp(72px,10vh,120px) 0}
 h2{font-family:var(--font-display);font-weight:800;text-transform:uppercase;font-size:clamp(40px,4.6vw,68px);line-height:.95;letter-spacing:.003em;max-width:16em;text-wrap:balance}
 h2 .hl{color:var(--before)}
-.mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 58%/100% .9em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 60%/100% .8em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .lede{max-width:36em;color:var(--prose);margin-top:18px}
 .lede code{font-size:.86em;color:var(--ink)}
 
@@ -252,7 +248,7 @@ h2 .hl{color:var(--before)}
 .honest .label{color:var(--strip-muted)}
 .honest h2{color:var(--strip-ink)}
 .honest .mk{background-image:linear-gradient(var(--strip-ink),var(--strip-ink));color:var(--strip)}
-.hq{margin-top:44px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px 48px}
+.hq{margin-top:44px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr) minmax(0,.8fr);gap:40px 44px;align-items:start}
 .hq blockquote{font-size:clamp(20px,1.75vw,25px);line-height:1.4;font-weight:500;border-left:3px solid var(--strip-ink);padding-left:20px}
 .hq blockquote.big{font-family:var(--font-display);font-weight:800;text-transform:uppercase;font-size:clamp(40px,4.4vw,64px);line-height:.95;align-self:start}
 .hq blockquote code{font-size:.82em}
@@ -276,7 +272,7 @@ h2 .hl{color:var(--before)}
 /* final */
 .final{position:relative;overflow:hidden;border-top:1px solid var(--rule);text-align:left}
 .final::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse 40% 60% at 85% 100%,color-mix(in srgb,var(--after) 12%,transparent),transparent 70%),
+  background:radial-gradient(ellipse 40% 60% at 85% 100%,rgba(233,221,191,.07),transparent 70%),
              radial-gradient(ellipse 50% 70% at 20% 0%,rgba(233,221,191,.06),transparent 70%)}
 .final .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:40px;align-items:center}
 .final h2{font-size:clamp(46px,5.4vw,84px)}
@@ -319,7 +315,9 @@ footer nav{display:flex;gap:18px;flex-wrap:wrap}
   .rs{grid-template-columns:8px minmax(0,1fr)}.rs .cnt{grid-column:2;flex-direction:row;gap:8px;justify-content:flex-start;border-left:0;border-top:1px dashed #C9BB97;padding:6px 14px}
   .rs .cnt b{font-size:22px}
   .rcpt{white-space:normal}
-  .run code{white-space:pre-wrap;word-break:break-all;font-size:12px}
+  .run code{white-space:pre;font-size:11.5px}
+  .policy{font-size:11px}
+  .shot{overflow-x:auto}.shot img{width:640px;max-width:none}
   .hq{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -348,16 +346,14 @@ footer nav{display:flex;gap:18px;flex-wrap:wrap}
 <section class="hero">
   <div class="wrap">
     <div class="hero-copy">
-      <span class="eyebrow"><i aria-hidden="true"></i>dreamDEX Perps Bounty · MVP<span class="long"> · bots &amp; agents</span></span>
+      <span class="eyebrow"><i aria-hidden="true"></i>dreamDEX Perps Bounty<span class="long"> · an MCP server for agents</span></span>
       <h1>Your agent writes the order. Pilot <span class="hl">holds it short.</span></h1>
-      <p class="sub">Asked for a <b>0.0005 BTC</b> short, Codex planned it: <b>$40.11</b> against your <b>$25</b> cap. Pilot refused it with nothing sent, named the size that fits, and the <b>0.00031 BTC</b> re-issue filled on dreamDEX. Pilot is an MCP server between your agent and dreamDEX perps on the Somnia testnet.</p>
+      <p class="sub">Asked for a <b>0.0005 BTC</b> short, Codex planned <b>$40.11</b> against your <b>$25</b> cap. Pilot refused it with nothing sent and named a size that fits: the <b>0.00031 BTC</b> re-issue filled on dreamDEX (Somnia testnet).</p>
       <div class="ctas">
-        <a class="btn p" href="https://github.com/edycutjong/dreamdex-pilot"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Source on GitHub</a>
+        <a class="btn p" href="https://github.com/edycutjong/dreamdex-pilot"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>GitHub</a>
         <a class="btn" href="pitch/">Pitch deck</a>
         <a class="btn" href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">The fill on chain</a>
       </div>
-      <div class="run"><code id="cmd">git clone https://github.com/edycutjong/dreamdex-pilot
-cd dreamdex-pilot &amp;&amp; npm ci &amp;&amp; npm test</code><button class="copy" type="button" data-copy="cmd">Copy</button></div>
     </div>
 
     <div class="bay" id="bay" aria-label="The strip bay: the 0.0005 BTC short Codex planned is refused at your $25 cap with nothing sent; the 0.00031 BTC re-issue is cleared and fills at block 31576050">
@@ -429,7 +425,7 @@ cd dreamdex-pilot &amp;&amp; npm ci &amp;&amp; npm test</code><button class="cop
       <figure class="shot">
         <div class="shot-bar"><i></i><i></i><i></i><span>markets explorer · hideki · tx 0x385c…8080</span></div>
         <img src="assets/explorer-fill-385c.webp" width="1200" height="861" loading="lazy" alt="Two crops of one capture of dreamDEX's Hideki markets explorer for transaction 0x385c…8080: block 31576050, 24/10/2026 02:41:21 UTC; one sell order at limit 80209.4, filled, crossed on arrival.">
-        <figcaption class="shot-foot">dreamDEX's Hideki markets explorer, captured 2026-10-27: two crops of one page (the transaction, the order). It rounds the size to 0.0003; the journal row records 0.00031 filled. <a href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">Open it live</a></figcaption>
+        <figcaption class="shot-foot">dreamDEX's Hideki markets explorer, captured 2026-10-27: two crops of one page (the transaction, the order; <a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/evidence/p12-explorer-capture.txt">how</a>). It rounds the size to 0.0003; the journal row records 0.00031 filled. <a href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">Open it live</a></figcaption>
       </figure>
     </div>
   </div>
@@ -526,7 +522,7 @@ https://github.com/edycutjong/dreamdex-pilot</div>
 <section class="s" id="faq">
   <div class="wrap">
     <div class="faqgrid">
-    <h2>Is it real? What was staged?</h2>
+    <h2>Is it real?<br>What was staged?</h2>
     <div class="faq">
       <details open><summary>Are these real orders?</summary><div class="a">Yes, on the Somnia testnet that dreamDEX's docs call Hideki (chain id 50383). Every transaction in <code>DEMO.md</code> was re-read from the RPC after the run, and each order and close hash links to its fill on dreamDEX's Hideki markets explorer (brackets and cancels are checked by the RPC only). Testnet only, with a burner key.</div></details>
       <details><summary>Which agents can use it?</summary><div class="a">Tested with Claude Code and Codex CLI over stdio; other MCP clients should work. Claude Code (Anthropic) opened 7 of the 9 recorded orders and Codex CLI (OpenAI) the other 2; MCP Inspector made read-only calls. Pilot has 9 tools: <code>markets</code>, <code>account</code>, <code>plan_order</code>, <code>place_order</code>, <code>close_position</code>, <code>bracket</code>, <code>cancel_all</code>, <code>policy</code>, <code>journal</code>.</div></details>
@@ -552,7 +548,8 @@ https://github.com/edycutjong/dreamdex-pilot</div>
         <a class="btn" href="pitch/">Pitch deck</a>
         <a class="btn" href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md">DEMO.md</a>
       </div>
-      <div class="run"><code id="cmd2">npm ci &amp;&amp; npm test</code><button class="copy" type="button" data-copy="cmd2">Copy</button></div>
+      <div class="run"><code id="cmd2">git clone https://github.com/edycutjong/dreamdex-pilot
+cd dreamdex-pilot &amp;&amp; npm ci &amp;&amp; npm test</code><button class="copy" type="button" data-copy="cmd2">Copy</button></div>
     </div>
   </div>
 </section>

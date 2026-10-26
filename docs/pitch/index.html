@@ -57,7 +57,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .lbl{font-family:var(--font-data);font-size:22px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .h{font-family:var(--font-display);font-weight:900;text-transform:uppercase;line-height:.9;letter-spacing:-.003em}
 .h .hl{color:var(--before)}.h .go{color:var(--after)}
-.mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 58%/100% .9em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 60%/100% .8em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .body{font-size:30px;line-height:1.45;color:var(--prose)}
 .body b{color:var(--ink);font-family:var(--font-data);font-weight:500;font-size:.9em}
 .chrome{position:absolute;left:120px;right:120px;bottom:44px;display:flex;justify-content:space-between;font-family:var(--font-data);font-size:18px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;z-index:2}
@@ -89,7 +89,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .bar i{height:13px;border-radius:2px;background:var(--before);box-shadow:0 0 18px color-mix(in srgb,var(--before) 55%,transparent)}
 .bar-lbl{display:flex;justify-content:space-between;font-family:var(--font-data);font-size:15px;letter-spacing:.14em;color:var(--before);margin:10px 0 0;text-transform:uppercase}
 .bar-lbl span:last-child{color:var(--muted)}
-.leadon{display:flex;gap:14px;margin:0 0 4px 4px}
+.leadon{display:flex;gap:14px;margin:2px 0 14px 4px}
 .leadon i{width:10px;height:10px;border-radius:50%;background:var(--after);box-shadow:0 0 12px var(--after)}
 .rcpt{font-family:var(--font-data);font-size:19px;color:var(--after);margin-top:18px}
 .rcpt span{color:var(--muted)}
@@ -103,7 +103,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .s1 .mark img{width:64px;height:64px;filter:drop-shadow(0 0 28px rgba(233,221,191,.18))}
 .s1 .mark b{font-family:var(--font-display);font-weight:900;font-size:44px;letter-spacing:.04em;color:var(--strip);text-transform:uppercase}
 .badge{display:inline-flex;gap:12px;align-items:center;border:1px solid var(--rule);padding:10px 16px;font-family:var(--font-data);font-size:19px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.badge i{width:10px;height:10px;background:var(--after)}
+.badge i{width:10px;height:10px;background:var(--strip)}
 /* slide 2 */
 .s2 .h{font-size:150px;max-width:12.5em;margin-top:40px}
 .s2 .any{margin-top:70px;width:1500px}
@@ -161,7 +161,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .rs .edge{background:var(--before-ink)}
 .rs .b{padding:22px 24px;font-family:var(--font-data);font-size:29px;font-weight:600}
 .rs .b s{font-weight:400;color:var(--strip-muted);margin-left:14px;font-size:19px;text-decoration-color:var(--before-ink);text-decoration-thickness:3px}
-.rs .c{display:flex;align-items:center;gap:8px;padding:0 28px;border-left:2px dashed #C9BB97;font-family:var(--font-display);font-weight:900;font-size:56px;color:var(--before-ink)}
+.rs .c{display:flex;align-items:center;justify-content:center;width:104px;gap:8px;padding:0;border-left:2px dashed #C9BB97;font-family:var(--font-display);font-weight:900;font-size:56px;color:var(--before-ink)}
 .s7 .next{margin-top:34px;font-family:var(--font-data);font-size:27px;color:var(--ink)}
 .s7 .next span{color:var(--strip)}
 /* slide 8 */
@@ -251,7 +251,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
     </div>
   </div>
   <div class="chrome"><span>v0.1.0 · Somnia testnet</span><span>strip 01 of 10</span></div>
-  <aside class="speaker-notes">Pilot sits between an AI agent and dreamDEX perps. On the right is a real run: the prompt asked Codex for a BTC short over my cap; pilot refused it before anything reached the chain, and the smaller size it named filled.</aside>
+  <aside class="speaker-notes">Pilot sits between an AI agent and dreamDEX perps. On the right is a real run: the prompt asked Codex for a 0.0005 BTC short and to stay under the policy. Codex planned the 0.0005, which was over my $25 cap; pilot refused it before anything reached the chain, and the smaller size it named filled.</aside>
 </section>
 
 <section class="slide s2" aria-label="2 hook">
@@ -350,7 +350,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
       <div class="rs"><div class="edge"></div><div class="b">planAlreadyUsed</div><div class="c">1</div></div>
     </div>
   </div>
-  <p class="next">Each names a next safe action: <span>pick one of BTC, ETH, SOL</span></p>
+  <p class="next">Each refusal names its rule and <span>a next safe action.</span></p>
   <div class="chrome"><b>Pilot</b><span>strip 07 of 10</span></div>
   <aside class="speaker-notes">Fifteen refusal rows in DEMO.md, nothing sent for any of them: eleven by the user's limits, four by pilot's own checks. Some are scripted probes, like a made-up plan id. Every one tells the agent what it can do instead.</aside>
 </section>
@@ -383,7 +383,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
       <div><b class="bf">15</b><span>refused, nothing sent</span></div>
       <div><b>9<small>/</small>9</b><span>opened, closed flat</span></div>
       <div><b>7</b><span>distinct rules</span></div>
-      <div><b>2</b><span>agents: Claude Code, Codex CLI</span></div>
+      <div><b>2</b><span>agents: Claude Code, Codex</span></div>
     </div>
   </div>
   <div class="band"><q>Testnet only. Nothing here has run on mainnet.</q><cite>README · Honest limits</cite></div>

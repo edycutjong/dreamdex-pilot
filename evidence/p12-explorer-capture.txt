@@ -1,0 +1,8 @@
+# docs/assets/explorer-fill-385c.webp — how it was made (2026-10-27)
+# Source page: https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080
+# Headless Chromium (Playwright), desktop Chrome UA, viewport 860 px wide, device scale 2, domcontentloaded + 9 s settle,
+# one full-page screenshot (2018 x 2194 px). Two crops of that one screenshot, stacked with a 28 px black gap:
+#   1. (105, 330)–(1615, 1085): breadcrumb, tx hash and the TRANSACTION panel (time 24/10/2026 02:41:21 UTC, block 31576050)
+#   2. (105, 1500)–(1615, 1800): the ORDERS PLACED IN THIS TRANSACTION panel (sell, limit 80209.4, size/filled 0.0003, Filled)
+# The "WHAT THIS TRANSACTION DID" panel between them was left out. Scaled to 1200 px wide, WebP quality 90.
+# The explorer rounds the size to 0.0003; the journal row (evidence/p3-mcp-run-codex-journal.jsonl row 6) records 0.00031 filled.
