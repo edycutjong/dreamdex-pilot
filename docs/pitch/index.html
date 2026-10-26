@@ -44,6 +44,9 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(var(--s,.5));transform-origin:center}
 .slide{position:absolute;inset:0;background:var(--bg);overflow:hidden;opacity:0;pointer-events:none;transition:opacity .35s;padding:90px 120px 130px;display:flex;flex-direction:column;justify-content:center}
 .slide>.lbl{align-self:flex-start}
+.slide{justify-content:flex-start;padding-top:110px}.s1,.s10{justify-content:center;padding-top:90px}
+.s2 .any,.s3 .gauge,.s5 .rail,.s6 .pair,.s7 .racks,.s8 .b8{margin-top:auto}
+.s2 .note,.s3 .gauge,.s5 .sdk,.s6 .pair,.s7 .next,.s8 .b8{margin-bottom:auto}
 .slide.on{opacity:1;pointer-events:auto}
 .slide::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(ellipse 55% 70% at 74% 36%,rgba(233,221,191,.075),transparent 70%),radial-gradient(ellipse 70% 60% at 0% 100%,rgba(0,0,0,.35),transparent 70%)}
@@ -54,6 +57,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .lbl{font-family:var(--font-data);font-size:22px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .h{font-family:var(--font-display);font-weight:900;text-transform:uppercase;line-height:.9;letter-spacing:-.003em}
 .h .hl{color:var(--before)}.h .go{color:var(--after)}
+.mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 58%/100% .9em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .body{font-size:30px;line-height:1.45;color:var(--prose)}
 .body b{color:var(--ink);font-family:var(--font-data);font-weight:500;font-size:.9em}
 .chrome{position:absolute;left:120px;right:120px;bottom:44px;display:flex;justify-content:space-between;font-family:var(--font-data);font-size:18px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;z-index:2}
@@ -123,13 +127,14 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .s4 .h{font-size:96px}
 .s4 .bay{margin-top:34px;padding:30px 40px 40px}
 .s4 .strip{grid-template-columns:16px 1.1fr .72fr .92fr .92fr}
-.s4 .strip .cs{font-size:64px}.s4 .strip .v{font-size:30px}.s4 .amend{font-size:46px}
+.s4 .strip>div:not(.edge){padding:18px 24px 20px}.s4 .strip .cs{font-size:78px}.s4 .strip .v{font-size:36px}.s4 .strip .u{font-size:21px}.s4 .strip small{font-size:16px}.s4 .amend{font-size:56px}
+.s4 .zone{font-size:19px}.s4 .why{font-size:23px}.s4 .bar-lbl{font-size:18px}.s4 .rcpt{font-size:25px}.s4 .stamp{font-size:18px;top:-46px}.s4 .bar i{height:15px}
 /* slide 5 */
 .s5 .h{font-size:100px;max-width:15em;margin-top:24px}
 .rail{margin-top:110px;display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative}
 .rail::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--rule)}
 .stn{position:relative;margin-right:22px;background:var(--strip);color:var(--strip-ink);padding:22px 22px 24px;border-left:12px solid var(--pending);box-shadow:0 3px 0 var(--strip-shade),0 18px 30px rgba(0,0,0,.35);min-height:270px}
-.stn.chk{border-left-color:var(--before-ink)}.stn.go{border-left-color:var(--after-ink)}
+.stn.chk{border-left-color:var(--strip-ink)}.stn.go{border-left-color:var(--after-ink)}
 .stn small{display:block;font-family:var(--font-data);font-size:14px;letter-spacing:.14em;color:var(--strip-muted);text-transform:uppercase}
 .stn b{display:block;font-family:var(--font-data);font-size:34px;font-weight:600;margin-top:8px}
 .stn span{display:block;font-family:var(--font-data);font-size:23px;color:var(--strip-muted);margin-top:10px;line-height:1.4}
@@ -145,7 +150,7 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .ln{display:grid;grid-template-columns:150px 1fr;gap:14px}.ln.gap{margin-top:22px}
 .ln .t{color:var(--muted)}.term .tool{color:var(--strip)}.term .no{color:var(--before)}.term .ok{color:var(--after)}.term .dim{color:var(--muted)}
 .shot{border:1px solid var(--rule);background:#000}
-.shot img{display:block;width:100%;height:auto;max-height:640px;object-fit:cover;object-position:top}
+.shot img{display:block;width:100%;height:auto}
 .cap6{font-family:var(--font-data);font-size:17px;color:var(--muted);margin-top:14px;line-height:1.5}
 /* slide 7 */
 .s7 .h{font-size:100px;margin-top:20px;max-width:14em}
@@ -158,15 +163,15 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .rs .b s{font-weight:400;color:var(--strip-muted);margin-left:14px;font-size:19px;text-decoration-color:var(--before-ink);text-decoration-thickness:3px}
 .rs .c{display:flex;align-items:center;gap:8px;padding:0 28px;border-left:2px dashed #C9BB97;font-family:var(--font-display);font-weight:900;font-size:56px;color:var(--before-ink)}
 .s7 .next{margin-top:34px;font-family:var(--font-data);font-size:27px;color:var(--ink)}
-.s7 .next span{color:var(--after)}
+.s7 .next span{color:var(--strip)}
 /* slide 8 */
 .s8 .h{font-size:96px;margin-top:20px;max-width:16em}
-.b8{margin-top:56px;display:grid;grid-template-columns:1.25fr 1fr;gap:34px}
+.b8{margin-top:56px;display:grid;grid-template-columns:1.5fr 1fr;gap:34px}
 .c8{border:1px solid var(--rule);background:linear-gradient(180deg,rgba(239,232,214,.035),rgba(239,232,214,.01));padding:46px 46px}
 .c8 h3{font-family:var(--font-display);font-weight:800;font-size:60px;text-transform:uppercase;line-height:1}
 .c8 p{font-size:30px;line-height:1.45;color:var(--prose);margin-top:14px}
 .c8 .mini{margin-top:26px;display:grid;gap:12px}
-.c8 .mini .rs .b{font-size:27px;padding:20px 22px}
+.c8 .mini .rs .b{font-size:31px;padding:26px 26px}
 .c8 .mini .rs .b em{font-style:normal;font-weight:400;color:var(--strip-muted);margin-left:14px}
 .stack{display:grid;gap:34px}
 /* slide 9 */
@@ -233,7 +238,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
     <div>
       <span class="badge"><i></i>Built for the dreamDEX Perps Bounty · MVP</span>
       <h1 class="h">Your agent writes the order. Pilot <span class="hl">holds it short.</span></h1>
-      <p class="body">An MCP server between any agent and dreamDEX perps on the Somnia testnet.</p>
+      <p class="body">An MCP server between your agent and dreamDEX perps on the Somnia testnet.</p>
     </div>
     <div class="bay">
       <div class="bay-head"><span>Bay 1 · Codex CLI</span><span>02:41 UTC</span></div>
@@ -246,12 +251,12 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
     </div>
   </div>
   <div class="chrome"><span>v0.1.0 · Somnia testnet</span><span>strip 01 of 10</span></div>
-  <aside class="speaker-notes">Pilot sits between an AI agent and dreamDEX perps. On the right is a real run: Codex asked for a BTC short over my cap, pilot refused it before anything reached the chain, and the smaller size it suggested filled.</aside>
+  <aside class="speaker-notes">Pilot sits between an AI agent and dreamDEX perps. On the right is a real run: the prompt asked Codex for a BTC short over my cap; pilot refused it before anything reached the chain, and the smaller size it named filled.</aside>
 </section>
 
 <section class="slide s2" aria-label="2 hook">
   <span class="lbl">The hook</span>
-  <h2 class="h">Handing an agent a trading key is <span class="hl">all or nothing.</span></h2>
+  <h2 class="h">Handing an agent a trading key is <span class="mk">all or nothing.</span></h2>
   <div class="any"><div class="strip"><div class="edge"></div><div><small>callsign</small><span class="cs">Agent</span></div><div><small>market</small><span class="v">any</span></div><div><small>size</small><span class="v">any</span></div><div><small>sent</small><span class="v">immediately</span></div></div></div>
   <p class="note">The SDK + a key: any order the exchange accepts.</p>
   <div class="chrome"><b>Pilot</b><span>strip 02 of 10</span></div>
@@ -260,14 +265,14 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
 
 <section class="slide s3" aria-label="3 problem">
   <span class="lbl">The problem, from a real run</span>
-  <h2 class="h">Codex proposed a short worth <span class="hl">$40.11</span>. You allow $25.</h2>
+  <h2 class="h">Asked for a short, Codex planned <span class="hl">$40.11</span>. You allow $25.</h2>
   <div class="gauge">
     <div class="track"><div class="fill"></div><span class="tag">BTC short 0.0005</span><div class="cap"></div><span class="capl">your cap $25</span><span class="endl">$40.11</span></div>
     <div class="scale"><span>$0</span><span>$50</span></div>
   </div>
-  <p class="src">Codex CLI, 2026-10-24 02:41:11 UTC · evidence/p3-mcp-run-codex-journal.jsonl row 4</p>
+  <p class="src">Codex CLI, 2026-10-24 02:41:11 UTC, commit 0d18cec · evidence/p3-mcp-run-codex-journal.jsonl row 4</p>
   <div class="chrome"><b>Pilot</b><span>strip 03 of 10</span></div>
-  <aside class="speaker-notes">This is the order that matters. The prompt asked for 0.0005 BTC; at the mark that is a $40 position, and the policy says $25 per market. A filled order cannot be recalled, so the check has to happen before broadcast.</aside>
+  <aside class="speaker-notes">This is the order that matters. The prompt asked for 0.0005 BTC; at the mark that is a $40 position, and the policy says $25 per market. A filled order cannot be recalled, so the check has to happen before broadcast. This run was on commit 0d18cec; pilot now values a short at the top bid, so today it would read about $40.51.</aside>
 </section>
 
 <section class="slide s4" aria-label="4 held short, then cleared">
@@ -289,13 +294,13 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
 
 <section class="slide s5" aria-label="5 how it holds">
   <span class="lbl">How it holds</span>
-  <h2 class="h">Checked when planned. <span class="hl">Checked again</span> when sent.</h2>
+  <h2 class="h">Checked when planned. <span class="mk">Checked again</span> when sent.</h2>
   <div class="rail">
-    <div class="stn"><small>01</small><b>agent</b><span>Claude Code, Codex CLI, any MCP client</span></div>
-    <div class="stn chk"><small>02</small><b>plan_order</b><span>SDK previews + your policy</span></div>
-    <div class="stn chk"><small>03</small><b>plan_id</b><span>one-shot, expires in 60 s</span></div>
-    <div class="stn chk"><small>04</small><b>place_order</b><span>re-checked on live state</span></div>
-    <div class="stn go"><small>05</small><b>dreamDEX</b><span>tx, then the journal</span></div>
+    <div class="stn"><small>01</small><b>agent</b><span>Claude Code, Codex</span></div>
+    <div class="stn chk"><small>02</small><b>plan_order</b><span>previews + policy</span></div>
+    <div class="stn chk"><small>03</small><b>plan_id</b><span>one-shot · 60 s default</span></div>
+    <div class="stn chk"><small>04</small><b>place_order</b><span>re-checked live</span></div>
+    <div class="stn go"><small>05</small><b>dreamDEX</b><span>tx + journal</span></div>
   </div>
   <div class="sdk"><em>markets-sdk 0.32.1:</em><span>getMaxPerpOrderSize</span><span>previewPerpOrderMargin</span><span>previewPerpLiquidationPrice</span><span>placePerpOrder</span></div>
   <div class="chrome"><b>Pilot</b><span>strip 05 of 10</span></div>
@@ -304,13 +309,15 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
 
 <section class="slide s6" aria-label="6 the run, twice">
   <span class="lbl">The run, twice</span>
-  <h2 class="h">The journal and the explorer <span class="go">agree.</span></h2>
+  <h2 class="h">The journal and the explorer: <span class="mk">same block.</span></h2>
   <div class="pair">
     <div class="term">
       <div class="term-head"><span>pilot journal · Codex CLI</span><span>rows 4–7</span></div>
       <div class="term-body">
         <div class="ln"><span class="t">02:41:11</span><span><span class="tool">plan_order</span> BTC short 0.0005</span></div>
         <div class="ln"><span class="t"></span><span class="no">refusal · maxNotionalUsd</span></div>
+        <div class="ln"><span class="t"></span><span class="dim">$40.11 notional, above the $25 cap</span></div>
+        <div class="ln"><span class="t"></span><span>next: at most 0.00031 BTC</span></div>
         <div class="ln gap"><span class="t">02:41:18</span><span><span class="tool">plan_order</span> BTC short 0.00031</span></div>
         <div class="ln gap"><span class="t">02:41:21</span><span><span class="tool">place_order</span></span></div>
         <div class="ln"><span class="t"></span><span class="ok">filled 0.00031 · block 31576050</span></div>
@@ -319,8 +326,8 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
       </div>
     </div>
     <div>
-      <div class="shot"><img src="../assets/explorer-fill-385c.webp" width="1200" height="1176" alt="dreamDEX Hideki markets explorer for tx 0x385c…8080: block 31576050, one sell order filled, crossed on arrival." loading="lazy"></div>
-      <p class="cap6">dreamDEX Hideki markets explorer, captured 2026-10-27; it rounds the size to 0.0003.</p>
+      <div class="shot"><img src="../assets/explorer-fill-385c.webp" width="1200" height="861" alt="Two crops of one capture of dreamDEX Hideki markets explorer for tx 0x385c…8080: block 31576050, one sell order filled, crossed on arrival." loading="lazy"></div>
+      <p class="cap6">dreamDEX Hideki markets explorer, captured 2026-10-27, two crops of one page; it rounds the size to 0.0003.</p>
     </div>
   </div>
   <div class="chrome"><b>Pilot</b><span>strip 06 of 10</span></div>
@@ -350,7 +357,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
 
 <section class="slide s8" aria-label="8 why not just the SDK">
   <span class="lbl">Why not just the SDK</span>
-  <h2 class="h">The cap is on the <span class="hl">position</span>, not the order.</h2>
+  <h2 class="h">The cap is on the <span class="mk">position</span>, not the order.</h2>
   <div class="b8">
     <div class="c8">
       <h3>Small orders cannot stack</h3>
@@ -371,12 +378,12 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
 <section class="slide s9" aria-label="9 receipts and limits">
   <div class="top9">
     <span class="lbl">Receipts · DEMO.md</span>
-    <h2 class="h">Every number is a <span class="go">journal row.</span></h2>
+    <h2 class="h">Every number is <span class="mk">counted from the journals.</span></h2>
     <div class="nums">
       <div><b class="bf">15</b><span>refused, nothing sent</span></div>
       <div><b>9<small>/</small>9</b><span>opened, closed flat</span></div>
       <div><b>7</b><span>distinct rules</span></div>
-      <div><b class="af">2</b><span>agents: Claude Code, Codex CLI</span></div>
+      <div><b>2</b><span>agents: Claude Code, Codex CLI</span></div>
     </div>
   </div>
   <div class="band"><q>Testnet only. Nothing here has run on mainnet.</q><cite>README · Honest limits</cite></div>
@@ -388,9 +395,9 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
   <div class="grid">
     <div>
       <span class="lbl">The ask</span>
-      <h2 class="h" style="margin-top:20px">Set your limits once. <span class="go">Let the agent trade inside them.</span></h2>
+      <h2 class="h" style="margin-top:20px">Run it. Then read <span class="mk">the 15 refusals.</span></h2>
       <div class="run">npm ci &amp;&amp; npm test</div>
-      <p class="links">github.com/edycutjong/dreamdex-pilot<br><span>Read DEMO.md: every tx linked to its fill.</span></p>
+      <p class="links">github.com/edycutjong/dreamdex-pilot<br><span>DEMO.md: every order and close linked to its fill.</span></p>
     </div>
     <div class="qrbox">
       <svg class="qr" viewBox="-2 -2 37 37" role="img" aria-label="QR code: github.com/edycutjong/dreamdex-pilot"><rect x="-2" y="-2" width="37" height="37" fill="#E9DDBF"/><path d="M0 0h7v1h-7zM8 0h1v1h-1zM10 0h2v1h-2zM15 0h2v1h-2zM19 0h1v1h-1zM22 0h2v1h-2zM26 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM14 1h1v1h-1zM17 1h1v1h-1zM21 1h1v1h-1zM23 1h2v1h-2zM26 1h1v1h-1zM32 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h1v1h-1zM10 2h6v1h-6zM17 2h2v1h-2zM20 2h1v1h-1zM23 2h1v1h-1zM26 2h1v1h-1zM28 2h3v1h-3zM32 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h4v1h-4zM14 3h2v1h-2zM17 3h1v1h-1zM19 3h1v1h-1zM22 3h2v1h-2zM26 3h1v1h-1zM28 3h3v1h-3zM32 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM10 4h5v1h-5zM17 4h4v1h-4zM22 4h2v1h-2zM26 4h1v1h-1zM28 4h3v1h-3zM32 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM11 5h1v1h-1zM14 5h1v1h-1zM16 5h1v1h-1zM19 5h2v1h-2zM26 5h1v1h-1zM32 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h7v1h-7zM8 7h11v1h-11zM20 7h5v1h-5zM1 8h1v1h-1zM3 8h1v1h-1zM5 8h4v1h-4zM11 8h1v1h-1zM13 8h4v1h-4zM21 8h3v1h-3zM25 8h3v1h-3zM29 8h2v1h-2zM32 8h1v1h-1zM0 9h4v1h-4zM12 9h3v1h-3zM20 9h1v1h-1zM24 9h4v1h-4zM31 9h2v1h-2zM3 10h1v1h-1zM5 10h2v1h-2zM8 10h2v1h-2zM11 10h2v1h-2zM15 10h3v1h-3zM19 10h1v1h-1zM24 10h1v1h-1zM26 10h3v1h-3zM30 10h1v1h-1zM32 10h1v1h-1zM0 11h1v1h-1zM4 11h1v1h-1zM8 11h1v1h-1zM12 11h3v1h-3zM16 11h2v1h-2zM19 11h1v1h-1zM21 11h1v1h-1zM25 11h2v1h-2zM28 11h2v1h-2zM31 11h2v1h-2zM0 12h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM10 12h2v1h-2zM13 12h3v1h-3zM21 12h6v1h-6zM29 12h1v1h-1zM31 12h2v1h-2zM0 13h4v1h-4zM5 13h1v1h-1zM7 13h1v1h-1zM12 13h2v1h-2zM15 13h1v1h-1zM19 13h2v1h-2zM22 13h1v1h-1zM24 13h3v1h-3zM28 13h5v1h-5zM0 14h1v1h-1zM2 14h2v1h-2zM5 14h3v1h-3zM9 14h2v1h-2zM12 14h2v1h-2zM16 14h3v1h-3zM20 14h2v1h-2zM23 14h1v1h-1zM25 14h3v1h-3zM29 14h1v1h-1zM31 14h1v1h-1zM0 15h1v1h-1zM2 15h1v1h-1zM4 15h1v1h-1zM7 15h2v1h-2zM11 15h4v1h-4zM17 15h2v1h-2zM20 15h2v1h-2zM23 15h2v1h-2zM26 15h1v1h-1zM28 15h1v1h-1zM31 15h1v1h-1zM0 16h2v1h-2zM3 16h1v1h-1zM6 16h1v1h-1zM9 16h1v1h-1zM13 16h4v1h-4zM18 16h1v1h-1zM20 16h5v1h-5zM26 16h1v1h-1zM28 16h1v1h-1zM31 16h1v1h-1zM1 17h1v1h-1zM3 17h1v1h-1zM5 17h1v1h-1zM7 17h2v1h-2zM11 17h5v1h-5zM17 17h1v1h-1zM23 17h3v1h-3zM27 17h1v1h-1zM29 17h1v1h-1zM1 18h6v1h-6zM8 18h4v1h-4zM14 18h2v1h-2zM24 18h1v1h-1zM26 18h1v1h-1zM30 18h3v1h-3zM0 19h1v1h-1zM3 19h1v1h-1zM5 19h1v1h-1zM8 19h1v1h-1zM11 19h3v1h-3zM16 19h6v1h-6zM23 19h2v1h-2zM26 19h2v1h-2zM31 19h1v1h-1zM0 20h7v1h-7zM8 20h1v1h-1zM13 20h7v1h-7zM21 20h1v1h-1zM23 20h3v1h-3zM31 20h1v1h-1zM1 21h1v1h-1zM3 21h1v1h-1zM5 21h1v1h-1zM8 21h5v1h-5zM16 21h2v1h-2zM20 21h3v1h-3zM24 21h4v1h-4zM30 21h3v1h-3zM0 22h10v1h-10zM11 22h2v1h-2zM14 22h1v1h-1zM16 22h2v1h-2zM19 22h3v1h-3zM26 22h4v1h-4zM32 22h1v1h-1zM1 23h2v1h-2zM8 23h1v1h-1zM12 23h1v1h-1zM16 23h1v1h-1zM19 23h1v1h-1zM21 23h2v1h-2zM29 23h1v1h-1zM31 23h2v1h-2zM0 24h1v1h-1zM2 24h2v1h-2zM6 24h2v1h-2zM9 24h2v1h-2zM12 24h4v1h-4zM17 24h1v1h-1zM19 24h3v1h-3zM24 24h5v1h-5zM31 24h1v1h-1zM8 25h1v1h-1zM10 25h3v1h-3zM16 25h2v1h-2zM19 25h1v1h-1zM21 25h2v1h-2zM24 25h1v1h-1zM28 25h2v1h-2zM31 25h2v1h-2zM0 26h7v1h-7zM8 26h3v1h-3zM13 26h1v1h-1zM16 26h1v1h-1zM20 26h1v1h-1zM22 26h1v1h-1zM24 26h1v1h-1zM26 26h1v1h-1zM28 26h4v1h-4zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h2v1h-2zM11 27h3v1h-3zM16 27h6v1h-6zM24 27h1v1h-1zM28 27h1v1h-1zM32 27h1v1h-1zM0 28h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM10 28h5v1h-5zM16 28h1v1h-1zM18 28h1v1h-1zM20 28h3v1h-3zM24 28h6v1h-6zM31 28h2v1h-2zM0 29h1v1h-1zM2 29h3v1h-3zM6 29h1v1h-1zM8 29h4v1h-4zM14 29h1v1h-1zM16 29h3v1h-3zM23 29h1v1h-1zM26 29h1v1h-1zM28 29h4v1h-4zM0 30h1v1h-1zM2 30h3v1h-3zM6 30h1v1h-1zM10 30h1v1h-1zM12 30h2v1h-2zM15 30h1v1h-1zM18 30h1v1h-1zM21 30h1v1h-1zM28 30h1v1h-1zM32 30h1v1h-1zM0 31h1v1h-1zM6 31h1v1h-1zM8 31h2v1h-2zM18 31h1v1h-1zM21 31h1v1h-1zM23 31h3v1h-3zM0 32h7v1h-7zM9 32h1v1h-1zM12 32h2v1h-2zM15 32h2v1h-2zM18 32h2v1h-2zM21 32h1v1h-1zM24 32h2v1h-2zM28 32h2v1h-2zM31 32h1v1h-1z" fill="#22211B"/></svg>
@@ -398,7 +405,7 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
     </div>
   </div>
   <div class="chrome"><span>v0.1.0 · MIT</span><span>strip 10 of 10</span></div>
-  <aside class="speaker-notes">Clone it, run the tests, and read DEMO.md: every transaction is linked to its fill on dreamDEX's explorer. Pilot is MIT licensed and works with any MCP client today.</aside>
+  <aside class="speaker-notes">Clone it, run the tests, and read DEMO.md: every order and close is linked to its fill on dreamDEX's explorer; brackets and cancels are checked against the RPC. Pilot is MIT licensed, tested with Claude Code and Codex CLI; other MCP clients should work.</aside>
 </section>
 
 </div></div>

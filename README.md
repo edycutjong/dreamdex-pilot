@@ -21,7 +21,7 @@ Every transaction below was re-read from the RPC; each order hash opens its fill
 > the position this order leaves would be $40.11 notional, above the $25 cap per market
 > next safe action: reduce size to at most 0.00031 BTC
 
-Codex planned exactly 0.00031 BTC and it filled. From [`DEMO.md`](DEMO.md) (journal `p3-mcp-run-codex-journal.jsonl`), with a Claude Code round trip under it:
+Codex planned exactly 0.00031 BTC and it filled. That run was on commit 0d18cec; since commit 5c81bcb pilot values a short at the top bid it can fill at, so the same order would now read about $40.51 and pilot would name a slightly smaller size. From [`DEMO.md`](DEMO.md) (journal `p3-mcp-run-codex-journal.jsonl`), with a Claude Code round trip under it:
 
 | what | tx | on chain |
 |---|---|---|

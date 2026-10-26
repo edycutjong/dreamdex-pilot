@@ -1,0 +1,9 @@
+# 2026-10-27: every order and close hash linked in DEMO.md (Orders + Closes sections, 18 links) opened in headless Chromium
+# (desktop UA, domcontentloaded + 9 s settle) on dreamDEX's Hideki markets explorer; PASS = the page shows an
+# "Orders placed in this transaction" table with a Filled order. Brackets, cancels and the reverted tx are not
+# linked in DEMO.md (the explorer shows "Nothing indexed" for them) and are not part of this check.
+18 order/close explorer links
+PASS …39bb1aca56  PASS …d15ebc6f83  PASS …133968aef4  PASS …d68fab2e5c  PASS …81b3272df1  PASS …f7eb521cc9
+PASS …7f29d6eda5  PASS …058e018080  PASS …89cf1e3c22  PASS …f0044c85a5  PASS …0184e38b97  PASS …c34a1620a0
+PASS …df15ceaad2  PASS …750afa3d62  PASS …a0416108ce  PASS …eeb9454113  PASS …16b5f17b00  PASS …4519e04472
+18 / 18 show a filled order
