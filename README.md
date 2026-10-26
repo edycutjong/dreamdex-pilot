@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/readme-hero-animated.svg" alt="Pilot — an MCP server between AI agents and dreamDEX perps. Pilot refuses the agent's 0.0005 BTC short in red at the $25 cap; the 0.00031 re-issue clears green." width="100%">
+</p>
+
 # Pilot
 
 Handing an AI agent a trading key is all or nothing. Pilot is an MCP server that puts limits you set between any agent (tested with Claude Code and Codex CLI; other MCP clients should work) and dreamDEX perps on the Somnia Tokyo testnet: it checks every opening order against your position cap, liquidation distance and allowed markets, checks again on live state when it sends, names a next step the agent can take when it refuses, and writes a receipt for each transaction.
