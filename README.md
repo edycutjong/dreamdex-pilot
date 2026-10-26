@@ -8,6 +8,7 @@
 
   <br/>
 
+  [![Live Site](https://img.shields.io/badge/🚀_Live-Site-06b6d4?style=for-the-badge)](https://edycutjong.github.io/dreamdex-pilot/)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](docs/pitch/pilot-pitch-deck.pdf)
   [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
   [![Built for dreamDEX Perps Bounty](https://img.shields.io/badge/DoraHacks-dreamDEX_Perps_Bounty-8b5cf6?style=for-the-badge)](https://dorahacks.io/hackathon/dreamdex-perps-bounty/detail)
@@ -19,6 +20,8 @@
   ![viem](https://img.shields.io/badge/viem-1E1E1E?style=flat)
   ![Somnia](https://img.shields.io/badge/Somnia_testnet-6D28D9?style=flat)
   [![License](https://img.shields.io/badge/License-MIT-yellow)](https://opensource.org/licenses/MIT)
+  [![CI](https://github.com/edycutjong/dreamdex-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/edycutjong/dreamdex-pilot/actions/workflows/ci.yml)
+  [![Release](https://img.shields.io/github/v/release/edycutjong/dreamdex-pilot?sort=semver)](https://github.com/edycutjong/dreamdex-pilot/releases/latest)
 
 </div>
 
