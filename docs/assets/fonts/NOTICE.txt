@@ -1,0 +1,5 @@
+Fonts in this folder are served unmodified from Google Fonts (latin subset), each under the SIL Open Font License 1.1
+(https://openfontlicense.org):
+- Big Shoulders Display — Copyright The Big Shoulders Project Authors
+- Barlow — Copyright The Barlow Project Authors
+- IBM Plex Mono — Copyright IBM Corp.

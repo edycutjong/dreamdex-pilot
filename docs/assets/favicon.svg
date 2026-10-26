@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Pilot">
+  <rect width="64" height="64" rx="14" fill="#1A1B15"/>
+  <clipPath id="s"><rect x="7" y="13" width="50" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#s)"><rect x="7" y="13" width="50" height="20" fill="#E9DDBF"/><rect x="45" y="13" width="12" height="20" fill="#FF5B33"/></g>
+  <path d="M10 29 L42 17" fill="none" stroke="#B02D0A" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="32" cy="47" r="7.5" fill="#2BD47A"/>
+</svg>

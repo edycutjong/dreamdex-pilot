@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot — your agent writes the order, pilot holds it short</title>
+<meta name="description" content="Pilot is an MCP server between any AI agent and dreamDEX perps on Somnia testnet. It refuses an order that breaks your limits, with nothing sent, and names the size that fits.">
+<meta name="theme-color" content="#1A1B15">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pilot">
+<meta property="og:title" content="Your agent writes the order. Pilot holds it short.">
+<meta property="og:description" content="An MCP server between any AI agent and dreamDEX perps on Somnia testnet: refused with nothing sent, then the size that fits.">
+<meta property="og:image" content="https://edycutjong.github.io/dreamdex-pilot/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-512.png">
+<link rel="preload" href="assets/fonts/big-shoulders-display-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/barlow-400.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Big Shoulders Display";src:url(assets/fonts/big-shoulders-display-var.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Barlow";src:url(assets/fonts/barlow-400.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Barlow";src:url(assets/fonts/barlow-500.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"Barlow";src:url(assets/fonts/barlow-600.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"IBM Plex Mono";src:url(assets/fonts/plex-mono-400.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"IBM Plex Mono";src:url(assets/fonts/plex-mono-500.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"IBM Plex Mono";src:url(assets/fonts/plex-mono-600.woff2) format("woff2");font-weight:600;font-display:swap}
+
+/* design.md §4 — the strip bay */
+:root{
+  --bg:#1A1B15; --ink:#EFE8D6; --muted:#9C9A8A; --before:#FF5B33; --after:#2BD47A; --rule:#3A3B30;
+  --strip:#E9DDBF; --strip-ink:#22211B; --strip-muted:#5E5845; --before-ink:#B02D0A; --after-ink:#0F6A36;
+  --strip-shade:#D6C9A6; --pending:#8E8B78; --bay:#22231C; --prose:#D9D2BF;
+  --font-display:"Big Shoulders Display","Oswald","Arial Narrow",sans-serif;
+  --font-body:"Barlow","Helvetica Neue",Arial,sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --pad:clamp(20px,4.4vw,64px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{overflow-x:clip;scroll-behavior:smooth;scrollbar-color:var(--rule) var(--bg)}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:18px;line-height:1.55;-webkit-font-smoothing:antialiased}
+::selection{background:var(--strip);color:var(--strip-ink)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--strip);outline-offset:3px}
+code,.mono{font-family:var(--font-data)}
+.grain{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.09;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1320px;margin:0 auto;padding:0 var(--pad)}
+.label{font-family:var(--font-data);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- top ---------- */
+.top{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:20px}
+.mark{display:flex;align-items:center;gap:10px;text-decoration:none}
+.mark img{width:30px;height:30px}
+.mark b{font-family:var(--font-display);font-weight:900;font-size:27px;letter-spacing:.03em;text-transform:uppercase;color:var(--strip)}
+.top nav{display:flex;gap:22px;align-items:center}
+.top nav a{font-family:var(--font-data);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color .2s}
+.top nav a:hover{color:var(--ink)}
+.top nav a.gh{color:var(--strip-ink);background:var(--strip);padding:8px 13px;transition:background .2s,transform .2s}
+.top nav a.gh:hover{background:var(--ink);transform:translateY(-1px)}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 55% 70% at 74% 38%,rgba(233,221,191,.085),transparent 70%),
+             radial-gradient(ellipse 70% 60% at 0% 100%,rgba(0,0,0,.35),transparent 70%)}
+/* world texture: the strip bay's rails, and the holding-position marking down the bay */
+.hero::after{content:"";position:absolute;top:0;bottom:0;right:0;width:52%;pointer-events:none;opacity:.55;
+  background:repeating-linear-gradient(180deg,transparent 0 71px,rgba(239,232,214,.05) 71px 72px)}
+.bay::before{content:"";position:absolute;top:-100vh;bottom:-100vh;left:-52px;width:34px;pointer-events:none;opacity:.22;
+  background:linear-gradient(90deg,var(--before) 0 4px,transparent 4px 9px,var(--before) 9px 13px,transparent 13px 21px,
+  transparent 21px),repeating-linear-gradient(180deg,var(--before) 0 22px,transparent 22px 40px);
+  background-size:13px 100%,13px 100%;background-position:0 0,21px 0;background-repeat:no-repeat}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,5vw,76px);padding-top:clamp(48px,7vh,88px);padding-bottom:clamp(48px,7vh,80px);align-items:center}
+.eyebrow{display:inline-flex;gap:10px;align-items:center;border:1px solid var(--rule);padding:7px 12px;font-family:var(--font-data);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.eyebrow i{width:7px;height:7px;background:var(--after);display:inline-block}
+h1{font-family:var(--font-display);font-weight:900;text-transform:uppercase;font-size:clamp(52px,6.6vw,104px);line-height:.88;letter-spacing:-.004em;margin:24px 0 26px;text-wrap:balance}
+h1 .hl{color:var(--before);position:relative;white-space:nowrap}
+h1 .hl::after{content:"";position:absolute;left:-1.5%;right:-1.5%;bottom:.05em;height:.085em;background:var(--before);border-radius:4px;transform:rotate(-1.3deg);transform-origin:left}
+.sub{max-width:35em;color:var(--prose);font-size:clamp(17px,1.25vw,19px)}
+.sub b{color:var(--ink);font-family:var(--font-data);font-weight:500;font-size:.9em;white-space:nowrap}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-data);font-size:13px;letter-spacing:.07em;text-transform:uppercase;padding:13px 18px;border:1px solid var(--strip);color:var(--strip);text-decoration:none;transition:background .2s,color .2s,transform .2s,box-shadow .2s}
+.btn:hover{background:rgba(233,221,191,.1);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.3)}
+.btn.p{background:var(--strip);color:var(--strip-ink)}
+.btn.p:hover{background:var(--ink)}
+.btn svg{width:15px;height:15px}
+.run{display:flex;align-items:center;gap:0;margin-top:18px;max-width:100%;border:1px solid var(--rule);background:rgba(0,0,0,.22)}
+.run code{font-size:13px;color:var(--prose);padding:11px 14px;white-space:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
+.run code::before{content:"$ ";color:var(--muted)}
+.copy{font-family:var(--font-data);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;background:none;border:0;border-left:1px solid var(--rule);color:var(--muted);padding:11px 14px;cursor:pointer;transition:color .2s,background .2s}
+.copy:hover{color:var(--ink);background:rgba(233,221,191,.06)}
+
+/* ---------- the strip (signature) ---------- */
+.bay{position:relative;background:var(--bay);border:1px solid var(--rule);padding:20px 20px 22px;box-shadow:inset 0 1px 0 rgba(239,232,214,.04),0 30px 60px rgba(0,0,0,.35)}
+.bay-head{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-data);font-size:11px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}
+.zone{font-family:var(--font-data);font-size:10.5px;letter-spacing:.18em;color:var(--muted);margin:16px 0 8px;display:flex;align-items:center;gap:10px}
+.zone::after{content:"";flex:1;height:1px;background:var(--rule)}
+.strip{position:relative;display:grid;grid-template-columns:10px minmax(0,1.1fr) minmax(0,.72fr) minmax(0,.92fr) minmax(0,.92fr);background:var(--strip);color:var(--strip-ink);font-family:var(--font-data);
+  box-shadow:0 2px 0 var(--strip-shade),0 14px 26px rgba(0,0,0,.38)}
+.strip>div{padding:9px 11px 10px;border-left:1px solid #CDBF9C;min-width:0}
+.strip>.edge{padding:0;border:0;background:var(--before-ink);transition:background .5s}
+.strip.ok>.edge{background:var(--after-ink)}
+.strip small{display:block;font-size:9.5px;letter-spacing:.14em;color:var(--strip-muted);text-transform:uppercase;white-space:nowrap}
+.strip .cs{font-family:var(--font-display);font-weight:900;font-size:clamp(28px,2.6vw,36px);line-height:1;text-transform:uppercase;display:block;margin-top:2px}
+.strip .v{font-size:clamp(15px,1.12vw,17px);font-weight:600;display:block;margin-top:3px;white-space:nowrap}
+.strip .u{display:block;font-size:12px;color:var(--strip-muted);margin-top:2px;white-space:nowrap}
+.struck{position:relative;display:inline-block}
+.struck::after{content:"";position:absolute;left:-8%;right:-8%;top:50%;height:3px;border-radius:2px;background:var(--before-ink);transform:rotate(-9deg) scaleX(1);transform-origin:left center;transition:transform .55s var(--ease)}
+.amend{display:block;color:var(--before-ink);font-family:var(--font-display);font-weight:800;font-size:clamp(20px,1.9vw,26px);line-height:1;margin-top:3px;transition:opacity .4s,transform .4s var(--ease)}
+.stamp{position:absolute;right:0;top:-27px;background:var(--bay);color:var(--before);border:1.5px solid var(--before);font-family:var(--font-data);font-size:10.5px;font-weight:600;letter-spacing:.14em;padding:3px 8px;transition:opacity .3s,transform .35s var(--ease)}
+.strip.ok .stamp{color:var(--after);border-color:var(--after)}
+.why{font-family:var(--font-data);font-size:12.5px;line-height:1.6;color:var(--ink);margin-top:12px;border-left:2px solid var(--before);padding-left:12px;transition:opacity .5s}
+.why span{color:var(--muted)}
+.bar{margin:18px 0 0;display:grid;grid-template-columns:repeat(14,1fr);gap:7px}
+.bar i{height:9px;border-radius:2px;background:var(--before);box-shadow:0 0 14px color-mix(in srgb,var(--before) 55%,transparent);transition:opacity .4s,box-shadow .4s}
+.bar-lbl{display:flex;justify-content:space-between;font-family:var(--font-data);font-size:10.5px;letter-spacing:.14em;color:var(--before);margin:7px 0 14px;text-transform:uppercase}
+.bar-lbl span:last-child{color:var(--muted)}
+.leadon{display:flex;gap:10px;margin:0 0 10px 3px}
+.leadon i{width:7px;height:7px;border-radius:50%;background:var(--after);box-shadow:0 0 10px var(--after);transition:opacity .3s}
+.s2wrap{position:relative;z-index:2;transition:transform .9s var(--ease),opacity .5s}
+.rcpt{font-family:var(--font-data);font-size:12.5px;color:var(--after);margin-top:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcpt a{color:var(--after);text-decoration-color:color-mix(in srgb,var(--after) 40%,transparent);text-underline-offset:3px}
+.rcpt span{color:var(--muted)}
+.replay{position:absolute;right:16px;bottom:-15px;font-family:var(--font-data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:var(--bg);color:var(--muted);border:1px solid var(--rule);padding:6px 10px;cursor:pointer;transition:color .2s,border-color .2s}
+.replay:hover{color:var(--ink);border-color:var(--muted)}
+/* choreography: the markup is the settled state; JS arms it, then steps through */
+.bay.armed .s1wrap{opacity:0;transform:translateX(-26px)}
+.s1wrap{transition:opacity .5s,transform .7s var(--ease)}
+.bay.armed .strip.s1 .edge{background:var(--pending)}
+.bay.armed .struck::after{transform:rotate(-9deg) scaleX(0)}
+.bay.armed .amend{opacity:0;transform:translateY(6px)}
+.bay.armed .s1 .stamp{opacity:0;transform:scale(1.5)}
+.bay.armed .why{opacity:0}
+.bay.armed .bar i{opacity:.18;box-shadow:none}
+.bay.armed .leadon i{opacity:.12;box-shadow:none}
+.bay.armed .s2wrap{opacity:0;transform:translateY(-84px)}
+.bay.armed .strip.s2 .edge{background:var(--pending)}
+.bay.armed .s2 .stamp{opacity:0;transform:scale(1.5)}
+.bay.armed .rcpt{opacity:0}
+.bay.t1 .s1wrap{opacity:1;transform:none}
+.bay.t2 .struck::after{transform:rotate(-9deg) scaleX(1)}
+.bay.t2 .strip.s1 .edge{background:var(--before-ink)}
+.bay.t2 .s1 .stamp{opacity:1;transform:none}
+.bay.t2 .bar i{opacity:1;box-shadow:0 0 14px color-mix(in srgb,var(--before) 55%,transparent)}
+.bay.t3 .amend{opacity:1;transform:none}
+.bay.t3 .why{opacity:1}
+.bay.t4 .s2wrap{opacity:1;transform:none}
+.bay.t5 .strip.s2 .edge{background:var(--after-ink)}
+.bay.t5 .s2 .stamp{opacity:1;transform:none}
+.bay.t5 .leadon i{opacity:1;box-shadow:0 0 10px var(--after)}
+.bay.t5 .rcpt{opacity:1;transition:opacity .6s}
+.bay.settled *{transition:none!important}
+
+/* ---------- receipts ---------- */
+.receipts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.r{padding:30px 24px 28px;border-left:1px solid var(--rule)}
+.r:first-child{border-left:0;padding-left:0}
+.r .n{font-family:var(--font-display);font-weight:900;font-size:clamp(56px,5.6vw,84px);line-height:.9;display:block;font-variant-numeric:tabular-nums}
+.r .n.bf{color:var(--before)}.r .n.af{color:var(--after)}
+.r .n small{font-size:.5em;color:var(--muted);font-weight:700;margin:0 .08em}
+.r p{font-size:15.5px;color:var(--prose);margin-top:10px;max-width:22em}
+.r a{display:inline-block;margin-top:10px;font-family:var(--font-data);font-size:11.5px;color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted);transition:color .2s}
+.r a:hover{color:var(--ink)}
+
+/* ---------- sections ---------- */
+section.s{padding:clamp(72px,10vh,120px) 0}
+h2{font-family:var(--font-display);font-weight:800;text-transform:uppercase;font-size:clamp(40px,4.6vw,68px);line-height:.95;letter-spacing:.003em;max-width:16em;text-wrap:balance}
+h2 .hl{color:var(--before)}h2 .go{color:var(--after)}
+.lede{max-width:36em;color:var(--prose);margin-top:18px}
+.lede code{font-size:.86em;color:var(--ink)}
+
+/* the run, twice */
+.pair{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:22px;margin-top:44px;align-items:start}
+.term{background:#11120D;border:1px solid var(--rule);font-family:var(--font-data);font-size:13px;line-height:1.7;min-width:0}
+.term-head{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.term-body{padding:16px 16px 18px;overflow-x:auto}
+.ln{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;white-space:pre-wrap}
+.ln+.ln{margin-top:2px}.ln.gap{margin-top:12px}
+.ln .t{color:var(--muted)}
+.ln .tool{color:var(--strip)}
+.ln .no{color:var(--before)}.ln .ok{color:var(--after)}.ln .dim{color:var(--muted)}
+.term.armed .ln{visibility:hidden}
+.term.armed .ln.on{visibility:visible}
+.caret{display:inline-block;width:8px;height:15px;background:var(--strip);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.term-foot,.shot-foot{font-family:var(--font-data);font-size:11.5px;color:var(--muted);padding:10px 14px;border-top:1px solid var(--rule);line-height:1.5}
+.shot{border:1px solid var(--rule);background:#0b0b0b;min-width:0}
+.shot-bar{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #222;font-family:var(--font-data);font-size:11.5px;color:#8a8a8a}
+.shot-bar i{width:9px;height:9px;border-radius:50%;background:#333}
+.shot-bar span{margin-left:8px;background:#151515;padding:3px 10px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.shot img{display:block;width:100%;height:auto}
+.shot-foot a{color:var(--ink)}
+
+/* the board: seven rules */
+.board{margin-top:46px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
+.rack{background:var(--bay);border:1px solid var(--rule);padding:18px 18px 8px}
+.rack-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px}
+.rack-head b{font-family:var(--font-display);font-weight:800;font-size:26px;text-transform:uppercase;letter-spacing:.02em}
+.rack-head span{font-family:var(--font-data);font-size:11.5px;color:var(--muted);letter-spacing:.08em}
+.rs{display:grid;grid-template-columns:8px minmax(0,1fr) auto;background:var(--strip);color:var(--strip-ink);margin-bottom:12px;box-shadow:0 2px 0 var(--strip-shade),0 10px 20px rgba(0,0,0,.3);transition:transform .25s var(--ease),box-shadow .25s}
+.rs:hover{transform:translateX(5px);box-shadow:0 2px 0 var(--strip-shade),0 14px 26px rgba(0,0,0,.4)}
+.rs .edge{background:var(--before-ink)}
+.rs .body{padding:11px 14px 12px;min-width:0}
+.rs .rule{font-family:var(--font-data);font-size:12px;font-weight:600;letter-spacing:.02em}
+.rs .ord{font-family:var(--font-data);font-size:12px;color:var(--strip-muted);margin-left:8px}
+.rs .ord s{text-decoration-color:var(--before-ink);text-decoration-thickness:2px}
+.rs p{font-size:14.5px;line-height:1.45;margin-top:5px;color:var(--strip-ink)}
+.rs .next{font-family:var(--font-data);font-size:12px;margin-top:6px;color:var(--after-ink)}
+.rs .next::before{content:"next safe action → ";color:var(--strip-muted)}
+.rs .cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px;border-left:1px dashed #C9BB97;min-width:74px}
+.rs .cnt b{font-family:var(--font-display);font-weight:900;font-size:34px;line-height:1;color:var(--before-ink)}
+.rs .cnt small{font-family:var(--font-data);font-size:9.5px;letter-spacing:.12em;color:var(--strip-muted);text-transform:uppercase}
+.rs .who{font-family:var(--font-data);font-size:9.5px;letter-spacing:.14em;color:var(--strip-muted);text-transform:uppercase;display:block;margin-bottom:3px}
+.board-note{grid-column:1/-1;font-family:var(--font-data);font-size:12px;color:var(--muted);line-height:1.6}
+.board-note a{color:var(--ink)}
+
+/* how it holds — asymmetric bento */
+.bento{margin-top:46px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
+.card{position:relative;background:linear-gradient(180deg,rgba(239,232,214,.035),rgba(239,232,214,.01));border:1px solid var(--rule);padding:26px 26px 24px;min-width:0;transition:border-color .25s,transform .25s var(--ease)}
+.card:hover{border-color:#57584A;transform:translateY(-3px)}
+.card.w4{grid-column:span 4}.card.w2{grid-column:span 2}.card.w3{grid-column:span 3}
+.card h3{font-family:var(--font-display);font-weight:800;text-transform:uppercase;font-size:clamp(26px,2.2vw,32px);line-height:1;letter-spacing:.01em;margin-top:14px}
+.card p{color:var(--prose);font-size:16px;margin-top:10px}
+.card .glyph{width:46px;height:30px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.chip{font-family:var(--font-data);font-size:11.5px;color:var(--ink);border:1px solid var(--rule);background:rgba(0,0,0,.25);padding:3px 8px}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin-top:22px;align-items:stretch}
+.st{position:relative;padding:12px 12px 12px 14px;border:1px solid var(--rule);border-left-width:4px;border-left-color:var(--pending);background:rgba(0,0,0,.2);font-family:var(--font-data);font-size:12px;line-height:1.45;min-width:0}
+.st+.st{border-left-color:var(--pending);margin-left:-1px}
+.st b{display:block;font-size:13px;color:var(--strip);font-weight:600;margin-bottom:4px;overflow-wrap:anywhere}
+.st span{color:var(--muted)}
+.st.chk{border-left-color:var(--before)}.st.go{border-left-color:var(--after)}
+.mini{margin-top:18px;display:grid;gap:8px}
+.mini .rs{margin:0}
+.mini .rs .body{padding:8px 12px}
+.policy{margin-top:16px;font-family:var(--font-data);font-size:12.5px;line-height:1.75;background:rgba(0,0,0,.25);border:1px solid var(--rule);padding:12px 14px;color:var(--prose);white-space:pre;overflow-x:auto}
+.policy .k{color:var(--muted)}
+.cardterm{margin-top:16px;font-family:var(--font-data);font-size:12.5px;line-height:1.65;background:#11120D;border:1px solid var(--rule);padding:12px 14px;color:var(--prose);white-space:pre-wrap;overflow-wrap:anywhere}
+.cardterm .hi{color:var(--before)}.cardterm .go{color:var(--after)}
+
+/* honest by design — a band of card stock */
+.honest{background:var(--strip);color:var(--strip-ink);position:relative}
+.honest::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(180deg,transparent 0 47px,rgba(34,33,27,.07) 47px 48px)}
+.honest .wrap{position:relative}
+.honest .label{color:var(--strip-muted)}
+.honest h2{color:var(--strip-ink)}
+.honest h2 .hl{color:var(--before-ink)}
+.hq{margin-top:44px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px 56px}
+.hq blockquote{font-size:clamp(20px,1.9vw,26px);line-height:1.4;font-weight:500;max-width:34em}
+.hq blockquote.big{font-family:var(--font-display);font-weight:800;text-transform:uppercase;font-size:clamp(40px,4.4vw,64px);line-height:.95;align-self:start}
+.hq>blockquote:nth-child(2){grid-column:2;grid-row:1/span 2}
+.hq blockquote code{font-size:.82em}
+.hq cite{display:block;margin-top:12px;font-style:normal;font-family:var(--font-data);font-size:12px;letter-spacing:.08em;color:var(--strip-muted);text-transform:uppercase}
+.hq .aside{font-size:16px;color:#3B392F;max-width:30em;margin-top:12px}
+.hq .aside b{color:var(--strip-ink)}
+
+/* faq */
+.faq{margin-top:40px;max-width:900px;border-top:1px solid var(--rule)}
+.faq details{border-bottom:1px solid var(--rule)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 2px;font-family:var(--font-body);font-weight:600;font-size:clamp(18px,1.5vw,21px);transition:color .2s}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:hover{color:var(--strip)}
+.faq summary::after{content:"+";font-family:var(--font-data);font-size:22px;color:var(--muted);transition:transform .3s var(--ease)}
+.faq details[open] summary::after{transform:rotate(45deg);color:var(--before)}
+.faq .a{padding:0 2px 22px;color:var(--prose);max-width:46em;font-size:16.5px}
+.faq .a code{font-size:.86em;color:var(--ink)}
+
+/* final */
+.final{position:relative;overflow:hidden;border-top:1px solid var(--rule);text-align:left}
+.final::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 40% 60% at 85% 100%,color-mix(in srgb,var(--after) 12%,transparent),transparent 70%),
+             radial-gradient(ellipse 50% 70% at 20% 0%,rgba(233,221,191,.06),transparent 70%)}
+.final .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:40px;align-items:end}
+.final h2{font-size:clamp(46px,5.4vw,84px)}
+footer{border-top:1px solid var(--rule);padding:26px 0 34px;font-family:var(--font-data);font-size:12px;color:var(--muted)}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px}
+footer a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
+footer a:hover{color:var(--ink)}
+footer nav{display:flex;gap:18px;flex-wrap:wrap}
+
+/* ---------- responsive ---------- */
+@media (max-width:1100px){
+  .top nav a:not(.gh):not(.deck){display:none}
+  .hero .wrap{grid-template-columns:minmax(0,1fr)}
+  .hero-copy{display:contents}
+  .hero .eyebrow{order:1;justify-self:start}.hero h1{order:2;margin-bottom:0}.bay{order:3}.hero .sub{order:4}.hero .ctas{order:5;margin-top:0}.hero .run{order:6;margin-top:-14px}
+  .bay::before{display:none}.hero::after{width:100%}
+  .receipts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .r:nth-child(3){border-left:0;padding-left:0}.r:nth-child(n+3){border-top:1px solid var(--rule)}
+  .pair,.board,.hq,.final .wrap{grid-template-columns:minmax(0,1fr)}
+  .bento{grid-template-columns:minmax(0,1fr)}
+  .card.w4,.card.w2,.card.w3{grid-column:auto}
+  .hq>blockquote:nth-child(2){grid-column:auto;grid-row:auto}
+}
+@media (max-width:640px){
+  body{font-size:17px}
+  .hero .wrap{padding-top:28px;gap:22px}
+  .eyebrow .long,.bay-head .long,.bay .long{display:none}
+  .strip .stamp{font-size:9.5px}
+  .top nav a.deck{display:none}
+  .strip{grid-template-columns:8px minmax(0,1fr) minmax(0,1fr);grid-template-areas:"e a b" "e c d"}
+  .strip>.edge{grid-area:e}.strip>.f1{grid-area:a}.strip>.f2{grid-area:b}.strip>.f3{grid-area:c;border-top:1px solid #CDBF9C}.strip>.f4{grid-area:d;border-top:1px solid #CDBF9C}
+  .bar{grid-template-columns:repeat(9,1fr)}.bar i:nth-child(n+10){display:none}
+  .bay{padding:16px 14px 22px}
+  .r{padding:22px 14px 22px}.r:nth-child(odd){padding-left:0}
+  .ln{grid-template-columns:minmax(0,1fr);gap:0}.ln .t:empty{display:none}
+  .flow{grid-template-columns:minmax(0,1fr)}.st+.st{margin-left:0;margin-top:-1px}
+  .rs{grid-template-columns:8px minmax(0,1fr)}.rs .cnt{grid-column:2;flex-direction:row;gap:8px;justify-content:flex-start;border-left:0;border-top:1px dashed #C9BB97;padding:6px 14px}
+  .rs .cnt b{font-size:22px}
+  .rcpt{white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media print{.grain,.top,.replay,.copy{display:none}body{background:#fff;color:#000}.hero::after,.hold{display:none}.faq .a{display:block}}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="#top" aria-label="Pilot, back to top"><img src="assets/icon.svg" alt="" width="30" height="30"><b>Pilot</b></a>
+    <nav aria-label="Sections">
+      <a href="#receipts">Receipts</a>
+      <a href="#board">The board</a>
+      <a href="#holds">How it holds</a>
+      <a href="#honest">Honest limits</a>
+      <a href="#faq">FAQ</a>
+      <a class="deck" href="pitch/">Deck</a>
+      <a class="gh" href="https://github.com/edycutjong/dreamdex-pilot">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow"><i aria-hidden="true"></i>dreamDEX Perps Bounty · MVP<span class="long"> · bots &amp; agents</span></span>
+      <h1>Your agent writes the order. Pilot <span class="hl">holds it short.</span></h1>
+      <p class="sub">Codex asked to short <b>0.0005 BTC</b>: <b>$40.11</b> against your <b>$25</b> cap. Pilot refused it with nothing sent, named the size that fits, and the <b>0.00031 BTC</b> re-issue filled on dreamDEX. Pilot is an MCP server between any agent and dreamDEX perps on the Somnia testnet.</p>
+      <div class="ctas">
+        <a class="btn p" href="https://github.com/edycutjong/dreamdex-pilot"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Source on GitHub</a>
+        <a class="btn" href="pitch/">Pitch deck</a>
+        <a class="btn" href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">The fill on chain</a>
+      </div>
+      <div class="run"><code id="cmd">git clone https://github.com/edycutjong/dreamdex-pilot &amp;&amp; cd dreamdex-pilot &amp;&amp; npm ci &amp;&amp; npm test</code><button class="copy" type="button" data-copy="cmd">Copy</button></div>
+    </div>
+
+    <div class="bay" id="bay" aria-label="The strip bay: Codex's 0.0005 BTC short is refused at your $25 cap with nothing sent; the 0.00031 BTC re-issue is cleared and fills at block 31576050">
+      <div class="bay-head"><span>Bay 1 · Codex CLI<span class="long"> · 2026-10-24 02:41 UTC</span></span><span>Hideki<span class="long"> · chain 50383</span></span></div>
+      <div class="zone">held short<span class="long"> · 02:41:11</span></div>
+      <div class="s1wrap">
+        <div class="strip s1">
+          <div class="edge"></div>
+          <div class="f1"><small>callsign</small><span class="cs">Codex</span></div>
+          <div class="f2"><small>market</small><span class="v">BTC</span><span class="u">short · IOC</span></div>
+          <div class="f3"><small>size</small><span class="v"><span class="struck">0.0005</span></span><span class="amend">0.00031</span></div>
+          <div class="f4"><small>notional</small><span class="v">$40.11</span><span class="u">cap $25</span></div>
+          <span class="stamp">Refused · nothing sent</span>
+        </div>
+      </div>
+      <p class="why">maxNotionalUsd: the position this order leaves would be $40.11 notional, above the $25 cap per market<br><span>next safe action:</span> reduce size to at most 0.00031 BTC</p>
+      <div class="bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="bar-lbl"><span>stop bar · your limits</span><span class="long">checked before broadcast</span></div>
+      <div class="zone" style="margin-top:0">cleared<span class="long"> · 02:41:21</span></div>
+      <div class="leadon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="s2wrap">
+        <div class="strip s2 ok">
+          <div class="edge"></div>
+          <div class="f1"><small>callsign</small><span class="cs">Codex</span></div>
+          <div class="f2"><small>market</small><span class="v">BTC</span><span class="u">short · IOC</span></div>
+          <div class="f3"><small>size</small><span class="v">0.00031</span></div>
+          <div class="f4"><small>notional</small><span class="v">$24.86</span><span class="u">cap $25</span></div>
+          <span class="stamp">Cleared · filled</span>
+        </div>
+      </div>
+      <p class="rcpt"><a href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">0x385c1486…8080</a> <span>· success @ block 31576050 · filled 0.00031</span></p>
+      <button class="replay" type="button" id="replay">↻ Replay 02:41:11 → 02:41:21</button>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="receipts" id="receipts">
+    <div class="r"><span class="n bf" data-count="15">15</span><p>refused with nothing sent: 15 rows in DEMO.md, 11 by your limits, 4 by pilot's own checks</p><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md#summary">DEMO.md · Summary</a></div>
+    <div class="r"><span class="n"><span data-count="9">9</span><small>/</small><span data-count="9">9</span></span><p>orders opened through the MCP tools, then closed flat on the read-back</p><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md#summary">DEMO.md · Summary</a></div>
+    <div class="r"><span class="n" data-count="7">7</span><p>distinct rules that refused an order, each with a next safe action</p><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md#refusals-by-pilot-refused_by-pilot-policy-your-policy-limits-and-pilots-own-checks">DEMO.md · Refusals</a></div>
+    <div class="r"><span class="n af" data-count="2">2</span><p>agents that traded through it: Claude Code (Anthropic) and Codex CLI (OpenAI)</p><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md">DEMO.md · Clients</a></div>
+  </div>
+</div>
+
+<section class="s" id="run">
+  <div class="wrap">
+    <span class="label">Strip 01 · the run</span>
+    <h2 style="margin-top:14px">One run, read from <span class="hl">both sides</span> of the stop bar.</h2>
+    <p class="lede">On the left, the journal pilot wrote while Codex worked (refused 02:41:11, closed 02:41:24). On the right, the same fill as dreamDEX's own explorer shows it.</p>
+    <div class="pair">
+      <div class="term" id="term">
+        <div class="term-head"><span>codex exec · pilot over stdio</span><span>journal</span></div>
+        <div class="term-body">
+          <div class="ln"><span class="t">02:41:11.799</span><span><span class="tool">plan_order</span> BTC short 0.0005</span></div>
+          <div class="ln"><span class="t"></span><span class="no">refusal · refused_by pilot-policy · maxNotionalUsd</span></div>
+          <div class="ln"><span class="t"></span><span class="dim">the position this order leaves would be $40.11 notional, above the $25 cap per market</span></div>
+          <div class="ln"><span class="t"></span><span>next: reduce size to at most 0.00031 BTC</span></div>
+          <div class="ln gap"><span class="t">02:41:18.257</span><span><span class="tool">plan_order</span> BTC short 0.00031 → plan_6c9331077bd9</span></div>
+          <div class="ln"><span class="t"></span><span class="dim">notional $24.86 · liquidation 234283.29, 189.78% from mark</span></div>
+          <div class="ln gap"><span class="t">02:41:21.757</span><span><span class="tool">place_order</span> plan_6c9331077bd9</span></div>
+          <div class="ln"><span class="t"></span><span class="ok">sent · filled 0.00031 · block 31576050 · success</span></div>
+          <div class="ln"><span class="t"></span><span class="dim">tx 0x385c1486…8080</span></div>
+          <div class="ln gap"><span class="t">02:41:24.347</span><span><span class="tool">close_position</span> BTC</span></div>
+          <div class="ln"><span class="t"></span><span class="ok">sent · filled 0.00031 · position after 0 · block 31576075</span></div>
+        </div>
+        <div class="term-foot">Re-set from <a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/evidence/p3-mcp-run-codex-journal.jsonl">evidence/p3-mcp-run-codex-journal.jsonl</a> rows 4–7: our layout, the journal's fields and words.</div>
+      </div>
+      <figure class="shot">
+        <div class="shot-bar"><i></i><i></i><i></i><span>markets explorer · hideki · tx 0x385c…8080</span></div>
+        <img src="assets/explorer-fill-385c.webp" width="1200" height="1176" loading="lazy" alt="dreamDEX's Hideki markets explorer for transaction 0x385c…8080: block 31576050, 24/10/2026 02:41:21 UTC, one sell order at limit 80209.4, filled, crossed on arrival.">
+        <figcaption class="shot-foot">dreamDEX's Hideki markets explorer, captured 2026-10-27. It rounds the size to 0.0003; the journal row records 0.00031 filled. <a href="https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x385c1486498227de49b628ab9f1e2dc6f0a44819793fbe45806a39058e018080">Open it live</a></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="board" style="padding-top:0">
+  <div class="wrap">
+    <h2>Seven ways it said <span class="hl">no</span>, and what to do instead.</h2>
+    <p class="lede">Every refusal names its rule and a next safe action the agent can act on. These are the real rows from <code>DEMO.md</code>; some are scripted probes, like a made-up plan id.</p>
+    <div class="board">
+      <div class="rack">
+        <div class="rack-head"><b>Your limits</b><span>11 rows · policy.json</span></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">Claude Code · 04:09:54</span><span class="rule">maxNotionalUsd</span><span class="ord">long <s>0.57 SOL</s> with 0.2 open</span><p>the position this order leaves would be $79.80 notional, above the $25 cap per market</p><p class="next">… close_position or a reducing order frees room</p></div><div class="cnt"><b>6</b><small>rows</small></div></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">Codex CLI · 02:41:26</span><span class="rule">allowedMarkets</span><span class="ord">long <s>200 DOGE</s></span><p>DOGE is not on the allowed list (BTC, ETH, SOL)</p><p class="next">pick one of BTC, ETH, SOL</p></div><div class="cnt"><b>4</b><small>rows</small></div></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">scripted · test policy, plans only · 04:36:53</span><span class="rule">minLiquidationDistancePct</span><span class="ord">long <s>3 SOL</s></span><p>liquidation would sit 12.80% from mark, closer than the 15% minimum</p><p class="next">use a smaller size (less leverage)</p></div><div class="cnt"><b>1</b><small>row</small></div></div>
+      </div>
+      <div class="rack">
+        <div class="rack-head"><b>Pilot's own checks</b><span>4 rows</span></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">Claude Code · 02:40:06</span><span class="rule">minQuantity</span><span class="ord">long <s>0.04 SOL</s></span><p>… is below the SOL minimum 0.1</p><p class="next">plan at least 0.1 SOL</p></div><div class="cnt"><b>1</b><small>row</small></div></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">MCP Inspector · 02:43:13</span><span class="rule">unknownPlan</span><span class="ord"><s>plan_0123456789ab</s></span><p>… plans live in this server's memory only and are one-shot</p><p class="next">call plan_order first</p></div><div class="cnt"><b>1</b><small>row</small></div></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">scripted · 04:17:32</span><span class="rule">planExpired</span><span class="ord"><s>plan_2b867222f225</s></span><p>… expired 2s ago (plans live 60s)</p><p class="next">call plan_order again for fresh prices</p></div><div class="cnt"><b>1</b><small>row</small></div></div>
+        <div class="rs"><div class="edge"></div><div class="body"><span class="who">scripted · 04:17:32</span><span class="rule">planAlreadyUsed</span><span class="ord"><s>plan_2b867222f225</s></span><p>… was already used: an earlier place_order refused it (planExpired) and sent nothing</p><p class="next">call plan_order for a new plan</p></div><div class="cnt"><b>1</b><small>row</small></div></div>
+      </div>
+      <p class="board-note">15 rows: 11 under your limits, 4 under pilot's own checks. Three of the DOGE rows also failed minQuantity; each is counted once, under your limits. The 0.0005 BTC refusal in the hero is one of the six maxNotionalUsd rows. One more refusal came from the exchange itself, with the race injected on purpose (see Honest limits). Source: <a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md">DEMO.md</a>, all times 2026-10-24 UTC.</p>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="holds" style="padding-top:0">
+  <div class="wrap">
+    <span class="label">Strip 02 · how it holds</span>
+    <h2 style="margin-top:14px">Give an agent the SDK and it can send any order. <span class="go">Pilot makes it wait for clearance.</span></h2>
+    <div class="bento">
+      <div class="card w4">
+        <svg class="glyph" viewBox="0 0 46 30" aria-hidden="true"><rect x="1" y="4" width="28" height="9" fill="#E9DDBF"/><rect x="1" y="17" width="20" height="9" fill="#E9DDBF"/><path d="M34 2v26" stroke="#FF5B33" stroke-width="3" stroke-dasharray="3 3"/><circle cx="41" cy="21.5" r="3" fill="#2BD47A"/></svg>
+        <h3>Checked twice, sent once</h3>
+        <p>plan_order runs the SDK's own previews against your policy and hands back a one-shot plan_id that expires in 60 s. place_order re-checks your policy, re-runs the liquidation and margin previews on live state and re-derives the limit price from the live book before it sends.</p>
+        <div class="flow">
+          <div class="st"><b>agent</b><span>Claude Code, Codex CLI, any MCP client</span></div>
+          <div class="st chk"><b>plan_order</b><span>SDK previews + your policy</span></div>
+          <div class="st chk"><b>plan_id</b><span>one-shot · 60 s</span></div>
+          <div class="st chk"><b>place_order</b><span>re-checked on live state</span></div>
+          <div class="st go"><b>dreamDEX</b><span>tx → journal</span></div>
+        </div>
+        <div class="chips"><span class="chip">getBookTopsOnchain</span><span class="chip">getMaxPerpOrderSize</span><span class="chip">previewPerpOrderMargin</span><span class="chip">previewPerpLiquidationPrice</span><span class="chip">placePerpOrder</span><span class="chip">@somnia-chain/markets-sdk 0.32.1</span></div>
+      </div>
+      <div class="card w2">
+        <svg class="glyph" viewBox="0 0 46 30" aria-hidden="true"><rect x="1" y="5" width="22" height="9" fill="#E9DDBF"/><rect x="23" y="5" width="12" height="9" fill="#B02D0A"/><path d="M38 1v28" stroke="#FF5B33" stroke-width="3"/><rect x="1" y="18" width="22" height="9" fill="#E9DDBF" opacity=".5"/></svg>
+        <h3>The cap is on the position</h3>
+        <p>With 0.2 SOL open, Claude Code planned a 0.1 SOL add, about $10 and under the cap on its own. Refused, nothing sent: the position it leaves would be $30.80.</p>
+        <div class="mini">
+          <div class="rs"><div class="edge" style="background:#8E8B78"></div><div class="body"><span class="rule">open · 0.2 SOL</span><span class="ord">planned at $20.54</span></div></div>
+          <div class="rs"><div class="edge"></div><div class="body"><span class="rule">add · <s>0.1 SOL</s></span><span class="ord">$30.80 &gt; $25</span></div></div>
+        </div>
+      </div>
+      <div class="card w3">
+        <svg class="glyph" viewBox="0 0 46 30" aria-hidden="true"><rect x="8" y="3" width="24" height="24" fill="none" stroke="#E9DDBF" stroke-width="2.5"/><path d="M13 11h14M13 16h14M13 21h9" stroke="#E9DDBF" stroke-width="2"/><rect x="30" y="14" width="12" height="13" fill="#FF5B33"/><path d="M33 14v-4a3 3 0 0 1 6 0v4" fill="none" stroke="#FF5B33" stroke-width="2"/></svg>
+        <h3>Limits no pilot tool can edit</h3>
+        <p>They live in a file no pilot tool writes; <code>policy</code> only reads it. They carry over between sessions, and the daily cap counts across restarts.</p>
+        <div class="policy"><span class="k">~/.pilot/policy.json · the defaults</span>
+"maxNotionalUsd": 25,
+"minLiquidationDistancePct": 15,
+"allowedMarkets": ["BTC", "ETH", "SOL"],
+"dailyOrderCap": 20,
+"maxSlippagePct": 1,
+"planTtlSec": 60</div>
+      </div>
+      <div class="card w3">
+        <svg class="glyph" viewBox="0 0 46 30" aria-hidden="true"><rect x="1" y="4" width="30" height="9" fill="#E9DDBF"/><rect x="1" y="17" width="30" height="9" fill="#E9DDBF" opacity=".35"/><path d="M34 21.5h9m-4-4 4 4-4 4" fill="none" stroke="#2BD47A" stroke-width="2.5"/></svg>
+        <h3>Closing is never blocked by your limits</h3>
+        <p>close_position closes from the live on-chain size and your limits never stop it, not even an invalid policy file. When it cannot close (an empty book, the signer lock held elsewhere) it says why.</p>
+        <p style="margin-top:14px">Every plan, refusal and transaction lands in an append-only journal. <code>journal --card</code> turns yours into a receipt to share:</p>
+        <div class="cardterm">My dreamDEX perps receipts via pilot (Somnia testnet) @DreamDEXSomnia:
+9 orders opened, 9 closed, 2 brackets, <span class="hi">15 refused with nothing sent</span> (11 by my limits).
+Latest fill: <span class="go">https://smk-dev-markets-explorer-…/tx/0x664861a4…85a5</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s honest" id="honest">
+  <div class="wrap">
+    <span class="label">Honest by design · from the README</span>
+    <h2 style="margin-top:14px">What it does not do, <span class="hl">in its own words.</span></h2>
+    <div class="hq">
+      <blockquote class="big">“Testnet only. Nothing here has run on mainnet.”<cite>README · Honest limits</cite></blockquote>
+      <blockquote>“One exchange refusal in <code>DEMO.md</code> is marked race injected: the limit price was lowered in the sender to make the order unfillable, because no natural one could be recorded through pilot's freshness check (12 attempts at a 0.01% slippage bound all filled).”<cite>README · Honest limits</cite></blockquote>
+      <div>
+        <blockquote>“Pilot guards its own tools, not the rest of the agent.”<cite>README · Honest limits</cite></blockquote>
+        <p class="aside">Claude Code and Codex CLI also have shell and file tools that could read the key or edit the policy file. The README's Run it section starts Claude Code with no built-in tools and Codex in a read-only sandbox (which still leaves it a shell), each checked with a <b>throwaway key</b>. Keep the burner small.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="faq">
+  <div class="wrap">
+    <h2>Questions a judge would ask.</h2>
+    <div class="faq">
+      <details open><summary>Are these real orders?</summary><div class="a">Yes, on the Somnia testnet that dreamDEX's docs call Hideki (chain id 50383). Every transaction in <code>DEMO.md</code> was re-read from the RPC after the run, and each order hash opens its fill on dreamDEX's Hideki markets explorer. Testnet only, with a burner key.</div></details>
+      <details><summary>Which agents can use it?</summary><div class="a">Any MCP client over stdio. Claude Code (Anthropic) opened 7 of the 9 recorded orders and Codex CLI (OpenAI) the other 2; MCP Inspector made read-only calls. Pilot has 9 tools: <code>markets</code>, <code>account</code>, <code>plan_order</code>, <code>place_order</code>, <code>close_position</code>, <code>bracket</code>, <code>cancel_all</code>, <code>policy</code>, <code>journal</code>.</div></details>
+      <details><summary>Can the agent change its own limits?</summary><div class="a">Not through pilot: no pilot tool writes the policy file. An agent that also has shell or file tools could, so the README shows each client with those tools turned off or fenced in.</div></details>
+      <details><summary>What happens when an order breaks a limit?</summary><div class="a">Nothing is sent. The refusal names the rule and a next safe action ("reduce size to at most 0.00031 BTC", "pick one of BTC, ETH, SOL"), says so when no order fits, and goes into the journal.</div></details>
+      <details><summary>What was scripted or staged?</summary><div class="a">The prompts were written for the runs, and some refusals are scripted probes, such as a made-up plan id. One exchange refusal is race injected. The liquidation rule was shown under a test policy that lifts the cap to $1000, plans only. Later live runs are kept out of the <code>DEMO.md</code> counts.</div></details>
+      <details><summary>Can it always get me out?</summary><div class="a"><code>close_position</code> is never blocked by your limits, even by an invalid policy file. It can still stop, for example on an empty book or when another pilot server holds the signer lock, and it says why.</div></details>
+      <details><summary>Can I try it without a key?</summary><div class="a">Yes. Reads work keyless when <code>PILOT_ACCOUNT</code> names a public address; the README's Run it section uses the demo burner, and its second call (a $60 SOL plan) is refused by the default $25 cap with nothing sent.</div></details>
+    </div>
+  </div>
+</section>
+
+<section class="s final">
+  <div class="wrap">
+    <div>
+      <span class="label">Clearance</span>
+      <h2 style="margin-top:14px">Set your limits once. <span class="go">Let the agent trade inside them.</span></h2>
+    </div>
+    <div>
+      <div class="ctas" style="margin-top:0">
+        <a class="btn p" href="https://github.com/edycutjong/dreamdex-pilot">Source on GitHub</a>
+        <a class="btn" href="pitch/">Pitch deck</a>
+        <a class="btn" href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md">DEMO.md</a>
+      </div>
+      <div class="run"><code id="cmd2">npm ci &amp;&amp; npm test</code><button class="copy" type="button" data-copy="cmd2">Copy</button></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Pilot v0.1.0 · MIT · built for the dreamDEX Perps Bounty · Somnia testnet only</span>
+    <nav aria-label="Footer"><a href="https://github.com/edycutjong/dreamdex-pilot">GitHub</a><a href="pitch/">Deck</a><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/DEMO.md">DEMO.md</a><a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/LICENSE">License</a></nav>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || /[?&]still\b/.test(location.search);
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
+    const t = document.getElementById(b.dataset.copy).textContent;
+    try { await navigator.clipboard.writeText(t); b.textContent = 'Copied'; } catch { b.textContent = 'Select'; }
+    setTimeout(() => (b.textContent = 'Copy'), 1600);
+  }));
+  if (reduce) return;
+  const seen = (el, fn, th = 0.35) => {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.disconnect(); fn(); } }), { threshold: th });
+    io.observe(el);
+  };
+  // the strip bay: markup is the settled state; arm, then step
+  const bay = document.getElementById('bay');
+  let timers = [];
+  const play = () => {
+    timers.forEach(clearTimeout); timers = [];
+    bay.classList.remove('settled', 't1', 't2', 't3', 't4', 't5');
+    bay.classList.add('armed');
+    void bay.offsetWidth;
+    [[250, 't1'], [1150, 't2'], [1900, 't3'], [3000, 't4'], [3900, 't5']].forEach(([ms, c]) => timers.push(setTimeout(() => bay.classList.add(c), ms)));
+    timers.push(setTimeout(() => { bay.classList.add('settled'); bay.classList.remove('armed', 't1', 't2', 't3', 't4', 't5'); }, 5200));
+  };
+  const r = bay.getBoundingClientRect();
+  if (r.top < innerHeight && r.bottom > 0) play(); else seen(bay, play);
+  document.getElementById('replay').addEventListener('click', play);
+  // receipts count up
+  const nums = [...document.querySelectorAll('[data-count]')];
+  seen(document.getElementById('receipts'), () => {
+    nums.forEach(n => {
+      const end = +n.dataset.count, t0 = performance.now(), d = 900;
+      const step = t => { const k = Math.min(1, (t - t0) / d); n.textContent = Math.round(end * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+      n.textContent = '0'; requestAnimationFrame(step);
+    });
+  }, 0.5);
+  // terminal replay: lines appear in order, then settle
+  const term = document.getElementById('term');
+  seen(term, () => {
+    const lines = [...term.querySelectorAll('.ln')];
+    term.classList.add('armed');
+    const caret = document.createElement('span'); caret.className = 'caret';
+    let at = 200;
+    lines.forEach((l, i) => {
+      at += l.classList.contains('gap') ? 560 : 240;
+      setTimeout(() => {
+        l.classList.add('on'); l.lastElementChild.appendChild(caret);
+        if (i === lines.length - 1) setTimeout(() => { term.classList.remove('armed'); caret.remove(); }, 900);
+      }, at);
+    });
+  });
+})();
+</script>
+</body>
+</html>
