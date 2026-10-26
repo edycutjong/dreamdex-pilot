@@ -1,14 +1,14 @@
 <div align="center">
   <img src="docs/assets/icon.svg" alt="Pilot icon" width="144">
   <h1>Pilot 🛩️</h1>
-  <p><em>Limits you set between your AI agent and dreamDEX perps: a next step on every refusal, a receipt for every order.</em></p>
+  <p><em>Limits you set between your AI agent and dreamDEX perps: a next step on every refusal, a journal receipt for every order pilot sends.</em></p>
   <img src="docs/assets/readme-hero-animated.svg" alt="Pilot — an MCP server between AI agents and dreamDEX perps. Pilot refuses the agent's 0.0005 BTC short in red at the $25 cap; the 0.00031 re-issue clears green." width="100%">
 
-  <p><b>9 real orders opened and 9 closed on the dreamDEX testnet through the MCP tools, 15 refused with nothing sent.</b> Every transaction was re-read from the RPC and is listed in <a href="DEMO.md"><code>DEMO.md</code></a>.</p>
+  <p><b>9 real orders opened and 9 closed on the dreamDEX testnet through the MCP tools, 15 refused with nothing sent.</b> Each of the 18 transactions was re-read from the RPC and is listed in <a href="DEMO.md"><code>DEMO.md</code></a>.</p>
 
   <br/>
 
-  [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://github.com/edycutjong/dreamdex-pilot/blob/main/docs/pitch/pilot-pitch-deck.pdf)
+  [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](docs/pitch/pilot-pitch-deck.pdf)
   [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
   [![Built for dreamDEX Perps Bounty](https://img.shields.io/badge/DoraHacks-dreamDEX_Perps_Bounty-8b5cf6?style=for-the-badge)](https://dorahacks.io/hackathon/dreamdex-perps-bounty/detail)
 
@@ -88,7 +88,7 @@ agent → plan_order (SDK previews + your policy) → one-shot plan_id → place
 | Runtime | Node 22, ESM, no build step |
 | Protocol | MCP over stdio (`@modelcontextprotocol/sdk` 1.32.2) |
 | Exchange | `@somnia-chain/markets-sdk` 0.32.1 on the Somnia Tokyo testnet (Hideki, chain id 50383) |
-| Chain client | `viem` 2.57.7 |
+| Utilities, key to address | `viem` 2.57.7 |
 | Validation | `zod` 4.6.7 (the policy file) |
 | Tests | `vitest` 5.0.5 |
 
@@ -253,7 +253,7 @@ bin/pilot.mjs      MCP server entry (stdio)
 src/               server, tools, trader (plan/place/close), policy, journal, SDK client
 test/              vitest suites and fixtures
 scripts/           real-run drivers (MCP client round trips) and the DEMO.md builder
-evidence/          raw captures behind every claim in this README and DEMO.md
+evidence/          raw captures and journals behind the recorded runs and receipts cited in this README and DEMO.md
 docs/              landing page, pitch deck, README assets
 policy.example.json  the default limits, as a file you can edit
 ```
