@@ -142,7 +142,7 @@ A bracket that fired on chain (a scripted MCP client, no LLM, outside the `DEMO.
 
 | Check | Result |
 |---|---|
-| Unit and MCP-client tests | 214 passing + 1 live check, off unless `PILOT_INTEGRATION=1` (`npm test`) |
+| Unit and MCP-client tests | 215 passing + 1 live check, off unless `PILOT_INTEGRATION=1` (`npm test`) |
 | Real orders through the MCP tools | 9 opened, 9 closed, 2 brackets, 2 cancels, every transaction re-read from the RPC (`DEMO.md`) |
 | Refusals with nothing sent | 15 rows, 7 distinct rules (`DEMO.md`) |
 
