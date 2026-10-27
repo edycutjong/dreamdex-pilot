@@ -8,7 +8,7 @@
 
   <br/>
 
-  [![Live Site](https://img.shields.io/badge/🚀_Live-Site-06b6d4?style=for-the-badge)](https://edycutjong.github.io/dreamdex-pilot/)
+  [![Live Site](https://img.shields.io/badge/🚀_Live-Site-06b6d4?style=for-the-badge)](https://pilot.edycu.dev/)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](docs/pitch/pilot-pitch-deck.pdf)
   [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
   [![Built for dreamDEX Perps Bounty](https://img.shields.io/badge/DoraHacks-dreamDEX_Perps_Bounty-8b5cf6?style=for-the-badge)](https://dorahacks.io/hackathon/dreamdex-perps-bounty/detail)
