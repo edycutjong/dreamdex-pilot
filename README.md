@@ -30,6 +30,8 @@
 
 ## 📸 See it in Action
 
+<img src="docs/assets/broll.gif" width="100%" alt="Looping replay of a real Codex CLI run: Codex plans a 0.0005 BTC short; pilot refuses it with nothing sent ($40.11 notional, above the $25 cap) and names at most 0.00031 BTC; Codex re-plans 0.00031 BTC ($24.86, under the cap), which clears pilot's checks and fills on chain, tx 0x385c1486…8080 at block 31576050.">
+
 Every transaction below was re-read from the RPC; each order hash opens its fill on dreamDEX's Hideki markets explorer.
 
 **Refused, then steered: Codex CLI (OpenAI).** Asked for a 0.0005 BTC short and told to stay under the policy (`evidence/p3-prompt-codex.txt`), Codex planned it and pilot refused it (rule `maxNotionalUsd`), with nothing sent:
