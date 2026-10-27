@@ -264,7 +264,7 @@ policy.example.json  the default limits, as a file you can edit
 ## 📽️ Demo Materials
 
 - [`DEMO.md`](DEMO.md): the journal of the real runs, rendered
-- [Landing page](docs/index.html) and [pitch deck](docs/pitch/index.html) ([PDF](docs/pitch/pilot-pitch-deck.pdf)), in this repo
+- [Landing page](https://pilot.edycu.dev/) and [pitch deck](https://pilot.edycu.dev/pitch/) ([PDF](docs/pitch/pilot-pitch-deck.pdf)), in this repo
 
 ### X posts
 
