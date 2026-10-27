@@ -11,6 +11,7 @@
   [![Live Site](https://img.shields.io/badge/🚀_Live-Site-06b6d4?style=for-the-badge)](https://pilot.edycu.dev/)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](docs/pitch/pilot-pitch-deck.pdf)
   [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
+  [![DoraHacks BUIDL](https://img.shields.io/badge/🏗️_DoraHacks-BUIDL-f97316?style=for-the-badge)](https://dorahacks.io/build/50390)
   [![Built for dreamDEX Perps Bounty](https://img.shields.io/badge/DoraHacks-dreamDEX_Perps_Bounty-8b5cf6?style=for-the-badge)](https://dorahacks.io/hackathon/dreamdex-perps-bounty/detail)
 
   <br/>
@@ -263,6 +264,7 @@ policy.example.json  the default limits, as a file you can edit
 
 ## 📽️ Demo Materials
 
+- [DoraHacks BUIDL](https://dorahacks.io/build/50390): the submission (MVP track)
 - [`DEMO.md`](DEMO.md): the journal of the real runs, rendered
 - [Landing page](https://pilot.edycu.dev/) and [pitch deck](https://pilot.edycu.dev/pitch/) ([PDF](docs/pitch/pilot-pitch-deck.pdf)), in this repo
 
