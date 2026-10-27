@@ -271,8 +271,8 @@ policy.example.json  the default limits, as a file you can edit
 Posts about pilot that tag @DreamDEXSomnia:
 
 1. [Post 1: what pilot is](https://x.com/edycutjong/status/2114874772987551884)
-2. _link to post 2 goes here_
-3. _link to post 3 goes here_
+2. [Post 2: refused, then steered](https://x.com/edycutjong/status/2114874776187736444)
+3. [Post 3: the receipt card](https://x.com/edycutjong/status/2114874779417399513)
 
 ## 📄 License
 
