@@ -94,7 +94,7 @@ agent → plan_order (SDK previews + your policy) → one-shot plan_id → place
 | Runtime | Node 22, ESM, no build step |
 | Protocol | MCP over stdio (`@modelcontextprotocol/sdk` 1.32.2) |
 | Exchange | `@somnia-chain/markets-sdk` 0.32.1 on the Somnia Tokyo testnet (Hideki, chain id 50383) |
-| Utilities, key to address | `viem` 2.57.7 |
+| Utilities, key to address | `viem` 2.57.10 |
 | Validation | `zod` 4.6.7 (the policy file) |
 | Tests | `vitest` 5.0.5 |
 
