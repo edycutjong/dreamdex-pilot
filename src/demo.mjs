@@ -9,7 +9,7 @@ const isLimit = (e) => (e.rules ?? []).some((r) => LIMIT_RULES.includes(r));
 const isFlat = (e) => e.positionAfter === "0";
 
 const short = (h) => (h ? `${h.slice(0, 10)}…${h.slice(-6)}` : "-");
-const cell = (v) => String(v ?? "-").replace(/\|/g, "\\|").replace(/\n/g, " ");
+const cell = (v) => String(v ?? "-").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 // dreamDEX's markets explorer for the Hideki testnet (listed on its perps testnet docs page). /tx/<hash> shows the market events of a
 // tx (fills); a stop placement, a cancel or a reverted tx shows "Nothing indexed for this transaction", so only orders and closes link.
 export const EXPLORER = "https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app";

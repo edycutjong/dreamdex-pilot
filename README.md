@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/icon.svg" alt="Pilot icon" width="144">
+  <img src="docs/assets/icon-animated.svg" alt="Pilot icon: a flight strip refused in red, then cleared in green" width="144">
   <h1>Pilot 🛩️</h1>
   <p><em>Limits you set between your AI agent and dreamDEX perps: a next step on every refusal, a journal receipt for every order pilot sends.</em></p>
   <img src="docs/assets/readme-hero-animated.svg" alt="Pilot — an MCP server between AI agents and dreamDEX perps. Pilot refuses the agent's 0.0005 BTC short in red at the $25 cap; the 0.00031 re-issue clears green." width="100%">

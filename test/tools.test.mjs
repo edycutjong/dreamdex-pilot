@@ -348,6 +348,11 @@ describe("DEMO.md", () => {
     expect(renderDemo([{ ...rows[0], tx: "unknown" }])).toContain("| `unknown` |");
   });
 
+  it("escapes backslashes before pipes, so a reason cannot break out of its table cell", () => {
+    const md = renderDemo([{ ...rows[2], refusals: [{ rule: "allowedMarkets", detail: "a\\|b", next: "pick BTC" }] }]);
+    expect(md).toContain("a\\\\\\|b");
+  });
+
   it("shows what plan_order said before each order: margin, leverage, liquidation", () => {
     const tx = "0x" + "9".repeat(64);
     const order = { at: "2026-10-24T06:00:01.000Z", kind: "order", direction: "short", size: "0.00031", market: "BTC", limitPrice: "1", filled: "0.00031", positionAfter: "-0.00031", plan_id: "plan_b", tx };
