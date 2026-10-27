@@ -83,6 +83,8 @@ Testnet only: the Somnia Tokyo testnet, as the bounty listing names it; dreamDEX
 
 ## 🏗️ Architecture & Tech Stack
 
+<img src="docs/assets/architecture.png" width="100%" alt="Pilot architecture. An agent (Claude Code or Codex CLI) calls pilot over MCP stdio. plan_order runs the SDK previews and your policy, which caps the position an order leaves; an ok plan gets a one-shot plan_id, and place_order re-checks on live state before @somnia-chain/markets-sdk sends to dreamDEX perps on the Somnia Hideki testnet (chain 50383). In the real Codex run, the 0.0005 BTC short is refused at $40.11 against the $25 cap with nothing sent, pilot names 0.00031, and the re-planned 0.00031 BTC short fills in tx 0x385c1486…8080. Every plan, refusal and transaction lands in an append-only journal.">
+
 ```
 agent → plan_order (SDK previews + your policy) → one-shot plan_id → place_order (re-checked on live state) → dreamDEX → journal
 ```

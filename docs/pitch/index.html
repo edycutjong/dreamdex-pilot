@@ -3,7 +3,7 @@
   Pilot — pitch deck. Single file, 1920x1080 stage scaled to the window.
   Keys: Right / Space / PageDown next · Left / PageUp back · Home / End · ESC overview grid · P presenter notes · C contrast debug.
   Print: Cmd/Ctrl+P → Save as PDF → landscape; one slide per page (16in x 9in).
-  Images: ../assets/icon.svg (mark), ../assets/explorer-fill-385c.webp (dreamDEX Hideki markets explorer, captured 2026-10-27).
+  Images: ../assets/icon.svg (mark), ../assets/architecture@2x.png (slide 5), ../assets/explorer-fill-385c.webp (dreamDEX Hideki markets explorer, captured 2026-10-27).
   Every figure comes from DEMO.md, README.md or evidence/p3-mcp-run-codex-journal.jsonl in this repo.
 -->
 <html lang="en">
@@ -45,8 +45,8 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .slide{position:absolute;inset:0;background:var(--bg);overflow:hidden;opacity:0;pointer-events:none;transition:opacity .35s;padding:90px 120px 130px;display:flex;flex-direction:column;justify-content:center}
 .slide>.lbl{align-self:flex-start}
 .slide{justify-content:flex-start;padding-top:110px}.s1,.s10{justify-content:center;padding-top:90px}
-.s2 .any,.s3 .gauge,.s5 .rail,.s6 .pair,.s7 .racks,.s8 .b8{margin-top:auto}
-.s2 .note,.s3 .gauge,.s5 .sdk,.s6 .pair,.s7 .next,.s8 .b8{margin-bottom:auto}
+.s2 .any,.s3 .gauge,.s6 .pair,.s7 .racks,.s8 .b8{margin-top:auto}
+.s2 .note,.s3 .gauge,.s6 .pair,.s7 .next,.s8 .b8{margin-bottom:auto}
 .slide.on{opacity:1;pointer-events:auto}
 .slide::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(ellipse 55% 70% at 74% 36%,rgba(233,221,191,.075),transparent 70%),radial-gradient(ellipse 70% 60% at 0% 100%,rgba(0,0,0,.35),transparent 70%)}
@@ -60,6 +60,8 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .mk{color:var(--strip-ink);padding:0 .12em;background:linear-gradient(var(--strip),var(--strip)) 0 60%/100% .8em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .body{font-size:30px;line-height:1.45;color:var(--prose)}
 .body b{color:var(--ink);font-family:var(--font-data);font-weight:500;font-size:.9em}
+.s5{padding:0}
+.s5 .arch{position:absolute;left:120px;top:30px;width:1680px;height:auto;display:block}
 .chrome{position:absolute;left:120px;right:120px;bottom:44px;display:flex;justify-content:space-between;font-family:var(--font-data);font-size:18px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;z-index:2}
 .chrome b{font-family:var(--font-display);font-weight:900;font-size:26px;letter-spacing:.04em;color:var(--strip)}
 
@@ -130,17 +132,6 @@ body{color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antial
 .s4 .strip>div:not(.edge){padding:18px 24px 20px}.s4 .strip .cs{font-size:78px}.s4 .strip .v{font-size:36px}.s4 .strip .u{font-size:21px}.s4 .strip small{font-size:16px}.s4 .amend{font-size:56px}
 .s4 .zone{font-size:19px}.s4 .why{font-size:23px}.s4 .bar-lbl{font-size:18px}.s4 .rcpt{font-size:25px}.s4 .stamp{font-size:18px;top:-46px}.s4 .bar i{height:15px}
 /* slide 5 */
-.s5 .h{font-size:100px;max-width:15em;margin-top:24px}
-.rail{margin-top:110px;display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative}
-.rail::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--rule)}
-.stn{position:relative;margin-right:22px;background:var(--strip);color:var(--strip-ink);padding:22px 22px 24px;border-left:12px solid var(--pending);box-shadow:0 3px 0 var(--strip-shade),0 18px 30px rgba(0,0,0,.35);min-height:270px}
-.stn.chk{border-left-color:var(--strip-ink)}.stn.go{border-left-color:var(--after-ink)}
-.stn small{display:block;font-family:var(--font-data);font-size:14px;letter-spacing:.14em;color:var(--strip-muted);text-transform:uppercase}
-.stn b{display:block;font-family:var(--font-data);font-size:34px;font-weight:600;margin-top:8px}
-.stn span{display:block;font-family:var(--font-data);font-size:23px;color:var(--strip-muted);margin-top:10px;line-height:1.4}
-.sdk{margin-top:60px;display:flex;flex-wrap:wrap;gap:12px}
-.sdk span{font-family:var(--font-data);font-size:22px;border:1px solid var(--rule);background:rgba(0,0,0,.25);padding:6px 14px;color:var(--ink)}
-.sdk em{font-style:normal;font-family:var(--font-data);font-size:19px;color:var(--muted);padding:7px 4px}
 /* slide 6 */
 .s6 .h{font-size:92px;margin-top:20px}
 .pair{margin-top:46px;display:grid;grid-template-columns:1.02fr .98fr;gap:34px;align-items:start}
@@ -292,19 +283,10 @@ body.debug-contrast .slide *:not(:has(*)){outline:1px dashed rgba(255,91,51,.6)}
   <aside class="speaker-notes">Same order, two strips. The first is held short of the stop bar: nothing went to the chain, and the refusal named a size that fits. Codex planned exactly that size, and it filled at block 31576050.</aside>
 </section>
 
-<section class="slide s5" aria-label="5 how it holds">
-  <span class="lbl">How it holds</span>
-  <h2 class="h">Checked when planned. <span class="mk">Checked again</span> when sent.</h2>
-  <div class="rail">
-    <div class="stn"><small>01</small><b>agent</b><span>Claude Code, Codex</span></div>
-    <div class="stn chk"><small>02</small><b>plan_order</b><span>previews + policy</span></div>
-    <div class="stn chk"><small>03</small><b>plan_id</b><span>one-shot · 60 s default</span></div>
-    <div class="stn chk"><small>04</small><b>place_order</b><span>re-checked live</span></div>
-    <div class="stn go"><small>05</small><b>dreamDEX</b><span>tx + journal</span></div>
-  </div>
-  <div class="sdk"><em>markets-sdk 0.32.1:</em><span>getMaxPerpOrderSize</span><span>previewPerpOrderMargin</span><span>previewPerpLiquidationPrice</span><span>placePerpOrder</span></div>
+<section class="slide s5" aria-label="5 how it holds: the architecture">
+  <img class="arch" src="../assets/architecture@2x.png" width="3200" height="1800" alt="Pilot architecture. An agent (Claude Code or Codex CLI) calls pilot over MCP stdio. plan_order runs the SDK previews and your policy, which caps the position an order leaves; an ok plan gets a one-shot plan_id, and place_order re-checks on live state before @somnia-chain/markets-sdk sends to dreamDEX perps on the Somnia Hideki testnet (chain 50383). In the real Codex run, the 0.0005 BTC short is refused at $40.11 against the $25 cap with nothing sent, pilot names 0.00031, and the re-planned 0.00031 BTC short fills in tx 0x385c1486…8080. Every plan, refusal and transaction lands in an append-only journal.">
   <div class="chrome"><b>Pilot</b><span>strip 05 of 10</span></div>
-  <aside class="speaker-notes">plan_order runs the SDK's own previews against your policy and returns a one-shot plan id. place_order re-checks the policy and re-runs the liquidation and margin previews on live state before it sends. Every step lands in an append-only journal.</aside>
+  <aside class="speaker-notes">The whole system on one board. Your agent talks to pilot over MCP. plan_order runs the SDK's own previews against your policy and returns a one-shot plan id; place_order re-checks the policy and re-runs the liquidation and margin previews on live state before the SDK sends. Codex's 0.0005 BTC short stayed above the stop bar with nothing sent; the 0.00031 re-plan crossed it and filled. Every plan, refusal and transaction lands in an append-only journal.</aside>
 </section>
 
 <section class="slide s6" aria-label="6 the run, twice">

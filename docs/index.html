@@ -191,6 +191,13 @@ h2 .hl{color:var(--before)}
 .shot-bar span{margin-left:8px;background:#151515;padding:3px 10px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .shot img{display:block;width:100%;height:auto}
 .shot-foot a{color:var(--ink)}
+/* the wiring: architecture diagram (own plate; scrolls locally on phones) */
+.arch{margin:46px 0 0}
+.arch .sc{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.arch img{display:block;width:100%;height:auto}
+.arch-hint{display:none;font-family:var(--font-data);font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.arch-hint a{color:var(--ink)}
+@media (max-width:640px){.arch img{width:960px;max-width:none}.arch-hint{display:block}}
 
 /* the board: seven rules */
 .board{margin-top:46px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
@@ -504,6 +511,19 @@ Latest fill: <span class="go">https://smk-dev-markets-explorer-…/tx/0x664861a4
 https://github.com/edycutjong/dreamdex-pilot</div>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="s" id="wiring" style="padding-top:0">
+  <div class="wrap">
+    <span class="label">Strip 03 · the wiring</span>
+    <h2 style="margin-top:14px">Where pilot sits: <span class="mk">between the agent and the chain.</span></h2>
+    <p class="lede">Your agent talks to pilot over MCP. An opening order crosses the stop bar only after pilot clears it twice; a refused one stays above it with nothing sent. The numbers are the Codex run above.</p>
+    <figure class="arch">
+      <p class="arch-hint">Swipe sideways to read the whole board, or <a href="assets/architecture@2x.png">open it full size</a>.</p>
+      <div class="sc"><a href="assets/architecture@2x.png"><img src="assets/architecture.png" srcset="assets/architecture.png 1600w, assets/architecture@2x.png 3200w" sizes="(max-width:640px) 960px, (max-width:1320px) 100vw, 1320px" width="1600" height="900" loading="lazy" alt="Pilot architecture. An agent (Claude Code or Codex CLI) calls pilot over MCP stdio. plan_order runs the SDK previews and your policy, which caps the position an order leaves; an ok plan gets a one-shot plan_id, and place_order re-checks on live state before @somnia-chain/markets-sdk sends to dreamDEX perps on the Somnia Hideki testnet (chain 50383). In the real Codex run, the 0.0005 BTC short is refused at $40.11 against the $25 cap with nothing sent, pilot names 0.00031, and the re-planned 0.00031 BTC short fills in tx 0x385c1486…8080. Every plan, refusal and transaction lands in an append-only journal."></a></div>
+      <figcaption class="shot-foot">Tool and SDK method names are from <a href="https://github.com/edycutjong/dreamdex-pilot/tree/main/src">src/</a>; the strips and journal rows are <a href="https://github.com/edycutjong/dreamdex-pilot/blob/main/evidence/p3-mcp-run-codex-journal.jsonl">evidence/p3-mcp-run-codex-journal.jsonl</a> rows 4–6. <a href="assets/architecture@2x.png">Open full size</a>.</figcaption>
+    </figure>
   </div>
 </section>
 
