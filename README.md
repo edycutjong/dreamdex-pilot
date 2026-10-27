@@ -270,7 +270,7 @@ policy.example.json  the default limits, as a file you can edit
 
 Posts about pilot that tag @DreamDEXSomnia:
 
-1. _link to post 1 goes here_
+1. [Post 1: what pilot is](https://x.com/edycutjong/status/2114874772987551884)
 2. _link to post 2 goes here_
 3. _link to post 3 goes here_
 
