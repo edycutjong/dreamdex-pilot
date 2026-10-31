@@ -9,6 +9,7 @@
   <br/>
 
   [![Live Site](https://img.shields.io/badge/🚀_Live-Site-06b6d4?style=for-the-badge)](https://pilot.edycu.dev/)
+  [![Demo Video](https://img.shields.io/badge/▶️_Demo-Video-ff0000?style=for-the-badge)](https://youtu.be/WpH8jww1u-g)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](docs/pitch/pilot-pitch-deck.pdf)
   [![Receipts](https://img.shields.io/badge/⛓️_Receipts-DEMO.md-ef4444?style=for-the-badge)](DEMO.md)
   [![DoraHacks BUIDL](https://img.shields.io/badge/🏗️_DoraHacks-BUIDL-f97316?style=for-the-badge)](https://dorahacks.io/build/50390)
@@ -48,12 +49,12 @@ Codex planned exactly 0.00031 BTC and it filled. That run was on commit 0d18cec;
 | long 0.1 SOL from Claude Code (IOC), filled 0.1 | [`0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x05f85c8c9a560bdb4bb60aa9bfa1b849259e372ea183211e1c8eb739bb1aca56) | success @ block 31569787 |
 | close long 0.1 SOL, position after 0 | [`0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xff5c0a063851acefb948c9a91217a35fe533d886193dc6bd9d8b174519e04472) | success @ block 31569804 |
 
-**The cap is on the position, not the order.** With 0.2 SOL open (planned at $20.54), Claude Code, limited to pilot's tools, planned a 0.1 SOL add: about $10, under the $25 cap on its own. Pilot refused it, with nothing sent:
+**The cap is on the position, not the order.** With 0.2 SOL open (planned at $20.54), Claude Code, limited to pilot's tools, was told to plan a 0.1 SOL add: about $10, under the $25 cap on its own. Pilot refused it, with nothing sent:
 
 > the position this order leaves would be $30.80 notional, above the $25 cap per market
 > next safe action: no SOL order fits under the cap: the room left is 0.04 SOL, below the SOL minimum 0.1; close_position or a reducing order frees room
 
-The agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b) (block 31928406), close [`0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324) (block 31928458), both success on the RPC re-read (`evidence/p9-undercap-cc.txt`, on the code of commit 85e9c0d, which later commits change only in the `DEMO.md` renderer; outside the `DEMO.md` counts).
+As instructed, the agent planned nothing more and closed: open [`0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0xf8c951805cdeedee74a95a77414c6494334f8712de076485c84202f643c3336b) (block 31928406), close [`0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324`](https://smk-dev-markets-explorer-hideki-euw4-uzavbo36ra-ez.a.run.app/tx/0x63b68fd2baffe8db70b8f1e5dc6df236db00336f1d870eb8df2c0c05e8e41324) (block 31928458), both success on the RPC re-read (`evidence/p9-undercap-cc.txt`, on the code of commit 85e9c0d, which later commits change only in the `DEMO.md` renderer; outside the `DEMO.md` counts).
 
 **Liquidation distance.** Under a test policy that lifts the cap to $1000 (plans only, nothing sent), a 3 SOL long (6.7x) was refused: "liquidation would sit 12.80% from mark, closer than the 15% minimum" (`DEMO.md`, journal `p6-liquidation-rule-journal.jsonl`).
 
