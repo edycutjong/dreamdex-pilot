@@ -280,6 +280,7 @@ Posts about pilot that tag @DreamDEXSomnia:
 1. [Post 1: what pilot is](https://x.com/edycutjong/status/2114874772987551884)
 2. [Post 2: refused, then steered](https://x.com/edycutjong/status/2114874776187736444)
 3. [Post 3: the receipt card](https://x.com/edycutjong/status/2114874779417399513)
+4. [Post 4: the 30 s demo clip](https://x.com/edycutjong/status/2116353025321406791)
 
 ## 📄 License
 
